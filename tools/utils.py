@@ -86,7 +86,8 @@ def get_scripts(args: argparse.Namespace) -> List[Tuple[str, Dict]]:
             if script_args["config"].endswith(".json"):
                 experiment = Experiment.load(script_args["config"])
                 configs_and_paths = [
-                    (c, os.path.join(script_args["path"], n)) for c, n in experiment.generate_configs_and_names()
+                    (c, os.path.join(script_args["path"], n))
+                    for c, n in experiment.generate_configs_and_names()
                 ]
             else:
                 configs_and_paths = [(script_args["config"], script_args["path"])]
@@ -113,7 +114,9 @@ def get_scripts(args: argparse.Namespace) -> List[Tuple[str, Dict]]:
             for script in scripts:
                 seed = int(script.get("seed"))
                 for i in range(args.seeds_per_script):
-                    seeded_script = script.copy()  # Should be a shallow dictionary, so copy OK
+                    seeded_script = (
+                        script.copy()
+                    )  # Should be a shallow dictionary, so copy OK
                     seeded_script["seed"] = seed + i
                     seeded_scripts.append(seeded_script)
             # Replace regular jobs with the seeded variants.
@@ -177,7 +180,9 @@ class Config(object):
 
 
 class Experiment(dict):
-    def __init__(self, base: str, name: Optional[str] = None, paired_keys: List[List[str]] = []):
+    def __init__(
+        self, base: str, name: Optional[str] = None, paired_keys: List[List[str]] = []
+    ):
         super().__init__()
         self._name = name
         self.base_config = Config.load(base)
@@ -223,16 +228,24 @@ class Experiment(dict):
                 paired_keys.add(k)
 
         groups = []
-        unpaired_keys = [key for key in self.keys() if key not in paired_keys]  # Fix the ordering!
+        unpaired_keys = [
+            key for key in self.keys() if key not in paired_keys
+        ]  # Fix the ordering!
         unpaired_variants = itertools.product(*[self[k] for k in unpaired_keys])
-        unpaired_variants = [{key: variant[i] for i, key in enumerate(unpaired_keys)} for variant in unpaired_variants]
+        unpaired_variants = [
+            {key: variant[i] for i, key in enumerate(unpaired_keys)}
+            for variant in unpaired_variants
+        ]
         groups.append(unpaired_variants)
 
         # Now construct the paired variants
         for key_pair in self.paired_keys:
             # instead of using product, use zip
             pair_variant = zip(*[self[k] for k in key_pair])  # This gets all the values
-            pair_variant = [{key: variant[i] for i, key in enumerate(key_pair)} for variant in pair_variant]
+            pair_variant = [
+                {key: variant[i] for i, key in enumerate(key_pair)}
+                for variant in pair_variant
+            ]
             groups.append(pair_variant)
 
         group_variants = itertools.product(*groups)
@@ -251,7 +264,12 @@ class Experiment(dict):
                 str_val = os.path.basename(v)
             else:
                 str_val = v
-        elif isinstance(v, int) or isinstance(v, float) or isinstance(v, bool) or v is None:
+        elif (
+            isinstance(v, int)
+            or isinstance(v, float)
+            or isinstance(v, bool)
+            or v is None
+        ):
             str_val = str(v)
         elif isinstance(v, list):
             str_val = "_".join([Experiment.format_name(val) for val in v])
@@ -273,17 +291,23 @@ class Experiment(dict):
                 # Recursively update the current config until we find the value.
                 while len(config_path) > 1:
                     if not config_path[0] in config_dict:
-                        raise ValueError("Experiment specified key not in config: " + str(k))
+                        raise ValueError(
+                            "Experiment specified key not in config: " + str(k)
+                        )
                     config_dict = config_dict[config_path[0]]
                     config_path.pop(0)
                 if not config_path[0] in config_dict:
-                    raise ValueError("Experiment specified key not in config: " + str(k))
+                    raise ValueError(
+                        "Experiment specified key not in config: " + str(k)
+                    )
                 # Finally set the value
                 config_dict[config_path[0]] = v
 
                 if k in FOLDER_KEYS and len(self[k]) > 1:
                     name = os.path.join(v, name)
-                elif k == "seed" and len(self["seed"]) > 1:  # More than one seed specified.
+                elif (
+                    k == "seed" and len(self["seed"]) > 1
+                ):  # More than one seed specified.
                     seed = v  # Note that seed is not added to the name.
                 elif len(self[k]) > 1:
                     str_val = Experiment.format_name(v)
@@ -297,7 +321,9 @@ class Experiment(dict):
                 name = os.path.join(name, "seed-" + str(seed))
             if not os.path.exists(TMP_DIR):
                 os.mkdir(TMP_DIR)
-            _, config_path = tempfile.mkstemp(text=True, prefix="config_", suffix=".json", dir=TMP_DIR)
+            _, config_path = tempfile.mkstemp(
+                text=True, prefix="config_", suffix=".json", dir=TMP_DIR
+            )
             print("Variant", i + 1)
             print(config)
             config.save(config_path)

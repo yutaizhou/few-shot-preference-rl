@@ -13,7 +13,9 @@ from .config import Config
 from .logger import Logger
 
 
-def get_env(env: gym.Env, env_kwargs: Dict, wrapper: Optional[gym.Env], wrapper_kwargs: Dict) -> gym.Env:
+def get_env(
+    env: gym.Env, env_kwargs: Dict, wrapper: Optional[gym.Env], wrapper_kwargs: Dict
+) -> gym.Env:
     # Try to get the environment
     try:
         env = vars(research.envs)[env](**env_kwargs)
@@ -27,10 +29,24 @@ def get_env(env: gym.Env, env_kwargs: Dict, wrapper: Optional[gym.Env], wrapper_
 def get_model(config, device: Union[str, torch.device] = "auto") -> Algorithm:
     assert isinstance(config, Config)
     alg_class = vars(research.algs)[config["alg"]]
-    dataset_class = None if config["dataset"] is None else vars(research.datasets)[config["dataset"]]
-    network_class = None if config["network"] is None else vars(research.networks)[config["network"]]
-    optim_class = None if config["optim"] is None else vars(torch.optim)[config["optim"]]
-    processor_class = None if config["processor"] is None else vars(research.processors)[config["processor"]]
+    dataset_class = (
+        None
+        if config["dataset"] is None
+        else vars(research.datasets)[config["dataset"]]
+    )
+    network_class = (
+        None
+        if config["network"] is None
+        else vars(research.networks)[config["network"]]
+    )
+    optim_class = (
+        None if config["optim"] is None else vars(torch.optim)[config["optim"]]
+    )
+    processor_class = (
+        None
+        if config["processor"] is None
+        else vars(research.processors)[config["processor"]]
+    )
 
     # TODO: Construct the train env as a vector env
     """
@@ -44,7 +60,12 @@ def get_model(config, device: Union[str, torch.device] = "auto") -> Algorithm:
     env = (
         None
         if config["env"] is None
-        else get_env(config["env"], config["env_kwargs"], config["wrapper"], config["wrapper_kwargs"])
+        else get_env(
+            config["env"],
+            config["env_kwargs"],
+            config["wrapper"],
+            config["wrapper_kwargs"],
+        )
     )
 
     # TODO: perhaps its better to construct eval env during the call to train
@@ -56,9 +77,19 @@ def get_model(config, device: Union[str, torch.device] = "auto") -> Algorithm:
         # If we don't have an eval function, we don't need an eval env.
         eval_env = None
     elif config["eval_env"] is None:
-        eval_env = get_env(config["env"], config["env_kwargs"], config["wrapper"], config["wrapper_kwargs"])
+        eval_env = get_env(
+            config["env"],
+            config["env_kwargs"],
+            config["wrapper"],
+            config["wrapper_kwargs"],
+        )
     else:
-        eval_env = get_env(config["eval_env"], config["eval_env_kwargs"], config["wrapper"], config["wrapper_kwargs"])
+        eval_env = get_env(
+            config["eval_env"],
+            config["eval_env_kwargs"],
+            config["wrapper"],
+            config["wrapper_kwargs"],
+        )
 
     algo = alg_class(
         env,
@@ -82,7 +113,9 @@ def get_model(config, device: Union[str, torch.device] = "auto") -> Algorithm:
     return algo
 
 
-def train(config: Config, path: str, device: Union[str, torch.device] = "auto") -> Algorithm:
+def train(
+    config: Config, path: str, device: Union[str, torch.device] = "auto"
+) -> Algorithm:
     # Create the save path and save the config
     print("[research] Training agent with config:")
     print(config)
@@ -91,7 +124,9 @@ def train(config: Config, path: str, device: Union[str, torch.device] = "auto") 
 
     config.save(path)
     # save the git hash
-    process = subprocess.Popen(["git", "rev-parse", "HEAD"], shell=False, stdout=subprocess.PIPE)
+    process = subprocess.Popen(
+        ["git", "rev-parse", "HEAD"], shell=False, stdout=subprocess.PIPE
+    )
     git_head_hash = process.communicate()[0].strip()
     with open(os.path.join(path, "git_hash.txt"), "wb") as f:
         f.write(git_head_hash)
@@ -135,7 +170,9 @@ def train(config: Config, path: str, device: Union[str, torch.device] = "auto") 
         if isinstance(schedule[k], str):
             schedule[k] = torch.optim.lr_scheduler.LambdaLR
             # Create the lambda function, and pass it in as a keyword arg
-            schedule_kwargs[k]["lr_lambda"] = vars(schedules)[config["schedule"]](**schedule_kwargs[k])
+            schedule_kwargs[k]["lr_lambda"] = vars(schedules)[config["schedule"]](
+                **schedule_kwargs[k]
+            )
 
     print(
         "[research] Training a model with",
@@ -155,14 +192,21 @@ def train(config: Config, path: str, device: Union[str, torch.device] = "auto") 
     return model
 
 
-def load(config: Config, model_path: str, device: Union[str, torch.device] = "auto", strict: bool = True) -> Algorithm:
+def load(
+    config: Config,
+    model_path: str,
+    device: Union[str, torch.device] = "auto",
+    strict: bool = True,
+) -> Algorithm:
     config = config.parse()  # Parse the config before getting the model
     model = get_model(config, device=device)
     model.load(model_path, strict=strict)
     return model
 
 
-def load_from_path(checkpoint_path: str, device: Union[str, torch.device] = "auto", strict: bool = True) -> Algorithm:
+def load_from_path(
+    checkpoint_path: str, device: Union[str, torch.device] = "auto", strict: bool = True
+) -> Algorithm:
     config_path = os.path.join(os.path.dirname(checkpoint_path), "config.yaml")
     config = Config.load(config_path)
     return load(config, checkpoint_path, device=device, strict=strict)

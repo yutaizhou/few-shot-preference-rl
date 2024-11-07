@@ -35,12 +35,19 @@ def get_model_and_assets():
 
 
 @SUITE.add()
-def reach_l2(time_limit=_DEFAULT_TIME_LIMIT, target_pos=(0, 1), random=None, environment_kwargs=None):
+def reach_l2(
+    time_limit=_DEFAULT_TIME_LIMIT,
+    target_pos=(0, 1),
+    random=None,
+    environment_kwargs=None,
+):
     """Returns reacher with sparse reward with 1e-2 tol and randomized target."""
     physics = Physics.from_xml_string(*get_model_and_assets())
     task = ReacherGoal(target_pos=target_pos, target_size=_SMALL_TARGET, random=random)
     environment_kwargs = environment_kwargs or {}
-    return control.Environment(physics, task, time_limit=time_limit, **environment_kwargs)
+    return control.Environment(
+        physics, task, time_limit=time_limit, **environment_kwargs
+    )
 
 
 class Physics(mujoco.Physics):
@@ -48,7 +55,10 @@ class Physics(mujoco.Physics):
 
     def finger_to_target(self):
         """Returns the vector from target to finger in global coordinates."""
-        return self.named.data.geom_xpos["target", :2] - self.named.data.geom_xpos["finger", :2]
+        return (
+            self.named.data.geom_xpos["target", :2]
+            - self.named.data.geom_xpos["finger", :2]
+        )
 
     def finger_to_target_dist(self):
         """Returns the signed distance between the finger and target surface."""

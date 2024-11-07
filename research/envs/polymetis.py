@@ -61,9 +61,13 @@ class PolyMetisEnv(gym.Env):
         action = action * self.max_detla
         # Clip the action so we don't leave the area
         action = torch.clamp(
-            self._ee_pos + action, min=torch.tensor(self.ee_pos_lower_limit), max=torch.tensor(self.ee_pos_upper_limit)
+            self._ee_pos + action,
+            min=torch.tensor(self.ee_pos_lower_limit),
+            max=torch.tensor(self.ee_pos_upper_limit),
         )
-        self.robot.update_desired_ee_pose(position=action, orientation=self._desired_quat)  # self._desired_quat)
+        self.robot.update_desired_ee_pose(
+            position=action, orientation=self._desired_quat
+        )  # self._desired_quat)
 
         if not self.fix_gripper:
             current_gripper_state = self.gripper.get_state().width
@@ -71,7 +75,9 @@ class PolyMetisEnv(gym.Env):
             speed = 0.01
             gripper_action = current_gripper_state + open_or_close * speed
             gripper_action = np.clip(gripper_action, -1, 1)
-            self.gripper.goto(width=gripper_action, speed=2 * speed, force=0.1, blocking=False)
+            self.gripper.goto(
+                width=gripper_action, speed=2 * speed, force=0.1, blocking=False
+            )
 
         time.sleep(self.time_to_go)
         self._ee_pos, self._ee_quat = self.robot.get_ee_pose()
@@ -88,10 +94,14 @@ class PolyMetisEnv(gym.Env):
         self._desired_quat = self._ee_quat
 
         if self.initialization_noise > 0:
-            delta = self.initialization_noise * np.random.uniform(low=-1, high=1, size=self._ee_pos.shape)
+            delta = self.initialization_noise * np.random.uniform(
+                low=-1, high=1, size=self._ee_pos.shape
+            )
             ee_pos = self._ee_pos.cpu().numpy() + delta
             time_to_go = 20 * self.time_to_go if self.time_to_go is not None else None
-            self.robot.move_to_ee_pose(position=ee_pos, orientation=self._desired_quat, time_to_go=time_to_go)
+            self.robot.move_to_ee_pose(
+                position=ee_pos, orientation=self._desired_quat, time_to_go=time_to_go
+            )
 
         self.robot.start_cartesian_impedance()
         self._ee_pos, self._ee_quat = self.robot.get_ee_pose()

@@ -87,7 +87,9 @@ if __name__ == "__main__":
     scripts_per_call = [args.scripts_per_job for _ in range(num_slurm_calls)]
     if args.remainder == "split":
         for i in range(remainder_scripts):
-            scripts_per_call[i] += 1  # Add the remainder jobs to spread them out as evenly as possible.
+            scripts_per_call[i] += (
+                1  # Add the remainder jobs to spread them out as evenly as possible.
+            )
     elif args.remainder == "new":
         scripts_per_call.append(remainder_scripts)
     else:

@@ -38,7 +38,9 @@ class PreferenceMAML(Algorithm):
             self.reward_network = self.network.reward
         else:
             self.reward_network = self.network
-        assert hasattr(self.reward_network, "params"), "Network class not setup for meta algs"
+        assert hasattr(
+            self.reward_network, "params"
+        ), "Network class not setup for meta algs"
         assert isinstance(self.reward_network.params, torch.nn.ParameterDict)
 
     def setup_optimizers(self, optim_class, optim_kwargs):
@@ -49,12 +51,15 @@ class PreferenceMAML(Algorithm):
             network_params = self.network.params
         self._inner_lrs = torch.nn.ParameterDict(
             {
-                k: torch.nn.Parameter(torch.tensor(self.inner_lr), requires_grad=self.learn_inner_lr)
+                k: torch.nn.Parameter(
+                    torch.tensor(self.inner_lr), requires_grad=self.learn_inner_lr
+                )
                 for k, v in network_params.items()
             }
         )
         self.optim["reward"] = optim_class(
-            itertools.chain(network_params.values(), self._inner_lrs.values()), **optim_kwargs
+            itertools.chain(network_params.values(), self._inner_lrs.values()),
+            **optim_kwargs,
         )
 
     def _compute_loss_and_accuracy(self, batch, parameters):
@@ -64,10 +69,14 @@ class PreferenceMAML(Algorithm):
         flat_action_shape = (B * S,) + batch["action_1"].shape[2:]
 
         r_hat1 = self.reward_network.forward(
-            batch["obs_1"].view(*flat_obs_shape), batch["action_1"].view(flat_action_shape), parameters
+            batch["obs_1"].view(*flat_obs_shape),
+            batch["action_1"].view(flat_action_shape),
+            parameters,
         )
         r_hat2 = self.reward_network.forward(
-            batch["obs_2"].view(*flat_obs_shape), batch["action_2"].view(flat_action_shape), parameters
+            batch["obs_2"].view(*flat_obs_shape),
+            batch["action_2"].view(flat_action_shape),
+            parameters,
         )
         labels = batch["label"].float()
         # Handle the ensemble case
@@ -120,9 +129,13 @@ class PreferenceMAML(Algorithm):
             if batch_size < self.num_support + self.num_query:
                 continue
             batch_support = utils.get_from_batch(task, 0, end=self.num_support)
-            batch_query = utils.get_from_batch(task, self.num_support, end=self.num_support + self.num_query)
+            batch_query = utils.get_from_batch(
+                task, self.num_support, end=self.num_support + self.num_query
+            )
             parameters, support_accuracy = self._inner_step(batch_support, train=train)
-            loss, query_accuracy = self._compute_loss_and_accuracy(batch_query, parameters)
+            loss, query_accuracy = self._compute_loss_and_accuracy(
+                batch_query, parameters
+            )
             outer_losses.append(loss)
             support_accuracies.append(support_accuracy)
             query_accuracies.append(query_accuracy)

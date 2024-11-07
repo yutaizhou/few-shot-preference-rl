@@ -10,9 +10,14 @@ IMG_HEIGHT, IMG_WIDTH = 480, 640
 MARKER_SIZE = 0.06
 CUBE_MARKER_SIZE = 0.04
 REFERENCE_ID = 25
-DESIRED_ZERO = np.array([0.395, -0.01, 0.025])  # The known 3D position of the reference marker.
+DESIRED_ZERO = np.array(
+    [0.395, -0.01, 0.025]
+)  # The known 3D position of the reference marker.
 CUBE_IDS = [26, 27, 28, 29, 30, 31]  # The IDs of the markers used on the cube
-SRs = ["realsenseSR_1", "realsenseSR_2"]  # Modify to be the IDs of your real sense camera
+SRs = [
+    "realsenseSR_1",
+    "realsenseSR_2",
+]  # Modify to be the IDs of your real sense camera
 
 
 # define names of each possible ArUco tag OpenCV supports
@@ -79,7 +84,11 @@ def calibrate_camera(sr, aruco_type):
     frame = frames.get_color_frame()
     color_intrinsics = frame.profile.as_video_stream_profile().intrinsics
     matrix_coefficients = np.array(
-        [[color_intrinsics.fx, 0, color_intrinsics.ppx], [0, color_intrinsics.fy, color_intrinsics.ppy], [0, 0, 1]]
+        [
+            [color_intrinsics.fx, 0, color_intrinsics.ppx],
+            [0, color_intrinsics.fy, color_intrinsics.ppy],
+            [0, 0, 1],
+        ]
     )
     distortion_coefficients = np.asarray(color_intrinsics.coeffs)
 
@@ -103,8 +112,14 @@ def calibrate_camera(sr, aruco_type):
             break
         # otherwise process to show the markers
         # Process frames after saving only
-        (corners, ids, rejected) = cv2.aruco.detectMarkers(frame, arucoDict, parameters=arucoParams)
-        if len(corners) == 0 or matrix_coefficients is None or distortion_coefficients is None:
+        (corners, ids, rejected) = cv2.aruco.detectMarkers(
+            frame, arucoDict, parameters=arucoParams
+        )
+        if (
+            len(corners) == 0
+            or matrix_coefficients is None
+            or distortion_coefficients is None
+        ):
             continue
 
         cv2.aruco.drawDetectedMarkers(frame, corners)
@@ -115,7 +130,14 @@ def calibrate_camera(sr, aruco_type):
             rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(
                 markerCorner, MARKER_SIZE, matrix_coefficients, distortion_coefficients
             )
-            cv2.aruco.drawAxis(frame, matrix_coefficients, distortion_coefficients, rvec, tvec, MARKER_SIZE / 2)
+            cv2.aruco.drawAxis(
+                frame,
+                matrix_coefficients,
+                distortion_coefficients,
+                rvec,
+                tvec,
+                MARKER_SIZE / 2,
+            )
             if use_frame:
                 rvec_list.append(rvec)
                 tvec_list.append(tvec)
@@ -145,7 +167,11 @@ def compute_zero(sr, aruco_type, reference_rvec, reference_tvec):
     frame = frames.get_color_frame()
     color_intrinsics = frame.profile.as_video_stream_profile().intrinsics
     matrix_coefficients = np.array(
-        [[color_intrinsics.fx, 0, color_intrinsics.ppx], [0, color_intrinsics.fy, color_intrinsics.ppy], [0, 0, 1]]
+        [
+            [color_intrinsics.fx, 0, color_intrinsics.ppx],
+            [0, color_intrinsics.fy, color_intrinsics.ppy],
+            [0, 0, 1],
+        ]
     )
     distortion_coefficients = np.asarray(color_intrinsics.coeffs)
 
@@ -169,8 +195,14 @@ def compute_zero(sr, aruco_type, reference_rvec, reference_tvec):
             break
         # otherwise process to show the markers
         # Process frames after saving only
-        (corners, ids, rejected) = cv2.aruco.detectMarkers(frame, arucoDict, parameters=arucoParams)
-        if len(corners) == 0 or matrix_coefficients is None or distortion_coefficients is None:
+        (corners, ids, rejected) = cv2.aruco.detectMarkers(
+            frame, arucoDict, parameters=arucoParams
+        )
+        if (
+            len(corners) == 0
+            or matrix_coefficients is None
+            or distortion_coefficients is None
+        ):
             continue
 
         cv2.aruco.drawDetectedMarkers(frame, corners)
@@ -179,11 +211,23 @@ def compute_zero(sr, aruco_type, reference_rvec, reference_tvec):
             if markerID not in CUBE_IDS:
                 continue
             rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(
-                markerCorner, CUBE_MARKER_SIZE, matrix_coefficients, distortion_coefficients
+                markerCorner,
+                CUBE_MARKER_SIZE,
+                matrix_coefficients,
+                distortion_coefficients,
             )
-            cv2.aruco.drawAxis(frame, matrix_coefficients, distortion_coefficients, rvec, tvec, CUBE_MARKER_SIZE / 2)
+            cv2.aruco.drawAxis(
+                frame,
+                matrix_coefficients,
+                distortion_coefficients,
+                rvec,
+                tvec,
+                CUBE_MARKER_SIZE / 2,
+            )
             if use_frame:
-                composedRvec, composedTvec = relativePosition(rvec, tvec, reference_rvec, reference_tvec)
+                composedRvec, composedTvec = relativePosition(
+                    rvec, tvec, reference_rvec, reference_tvec
+                )
                 # Now compute the actual center of the marker cube
                 cube_center = np.array([[0, 0, -CUBE_MARKER_SIZE / 2]]).T
                 rot_mat, _ = cv2.Rodrigues(composedRvec)
@@ -234,13 +278,33 @@ def load_coefficients(path):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Camera calibration")
     parser.add_argument(
-        "--image-dir", type=str, required=False, default="../output/calibration", help="image directory path"
+        "--image-dir",
+        type=str,
+        required=False,
+        default="../output/calibration",
+        help="image directory path",
     )
     parser.add_argument(
-        "--square-size", type=float, required=False, default=0.0217, help="chessboard square size. Specifically tuned."
+        "--square-size",
+        type=float,
+        required=False,
+        default=0.0217,
+        help="chessboard square size. Specifically tuned.",
     )
-    parser.add_argument("--width", type=int, required=False, default=9, help="chessboard width size, default is 9")
-    parser.add_argument("--height", type=int, required=False, default=6, help="chessboard height size, default is 6")
+    parser.add_argument(
+        "--width",
+        type=int,
+        required=False,
+        default=9,
+        help="chessboard width size, default is 9",
+    )
+    parser.add_argument(
+        "--height",
+        type=int,
+        required=False,
+        default=6,
+        help="chessboard height size, default is 6",
+    )
     parser.add_argument(
         "--save-file",
         type=str,

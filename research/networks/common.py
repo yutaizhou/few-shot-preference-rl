@@ -65,7 +65,9 @@ class LinearEnsemble(nn.Module):
         self.in_features = in_features
         self.out_features = out_features
         self.ensemble_size = ensemble_size
-        self.weight = torch.empty((ensemble_size, in_features, out_features), **factory_kwargs)
+        self.weight = torch.empty(
+            (ensemble_size, in_features, out_features), **factory_kwargs
+        )
         if bias:
             self.bias = torch.empty((ensemble_size, 1, out_features), **factory_kwargs)
         else:
@@ -90,12 +92,17 @@ class LinearEnsemble(nn.Module):
         if len(input.shape) == 2:
             input = input.repeat(self.ensemble_size, 1, 1)
         elif len(input.shape) > 3:
-            raise ValueError("LinearEnsemble layer does not support inputs with more than 3 dimensions.")
+            raise ValueError(
+                "LinearEnsemble layer does not support inputs with more than 3 dimensions."
+            )
         return torch.baddbmm(self.bias, input, self.weight)
 
     def extra_repr(self) -> str:
         return "ensemble_size={}, in_features={}, out_features={}, bias={}".format(
-            self.ensemble_size, self.in_features, self.out_features, self.bias is not None
+            self.ensemble_size,
+            self.in_features,
+            self.out_features,
+            self.bias is not None,
         )
 
 
@@ -130,7 +137,9 @@ class EnsembleMLP(nn.Module):
         """
         super().__init__()
         # Change the normalization type to work over ensembles
-        assert normalization is None or normalization is nn.LayerNorm, "Ensemble only supports layer norm"
+        assert (
+            normalization is None or normalization is nn.LayerNorm
+        ), "Ensemble only supports layer norm"
         net = []
         last_dim = input_dim
         for dim in hidden_layers:

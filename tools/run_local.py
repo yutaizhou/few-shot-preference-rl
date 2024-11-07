@@ -10,18 +10,35 @@ A script for launching jobs on a local machine. This is designed to mimic the de
 
 if __name__ == "__main__":
     parser = utils.get_parser()
-    parser.add_argument("--cpus", "-c", type=int, default=None, help="Number of CPUs per job instance")
-    parser.add_argument("--gpus", "-g", type=int, default=None, help="Number of GPUs per job instance")
-    parser.add_argument("--valid-gpus", type=int, nargs="+", default=None, help="Specifies which GPUS to use.")
+    parser.add_argument(
+        "--cpus", "-c", type=int, default=None, help="Number of CPUs per job instance"
+    )
+    parser.add_argument(
+        "--gpus", "-g", type=int, default=None, help="Number of GPUs per job instance"
+    )
+    parser.add_argument(
+        "--valid-gpus",
+        type=int,
+        nargs="+",
+        default=None,
+        help="Specifies which GPUS to use.",
+    )
     parser.add_argument("--valid-cpus", type=str, nargs="+", default=None)
     parser.add_argument(
-        "--use-taskset", action="store_true", default=False, help="Whether or not to CPU load balance with taskset"
+        "--use-taskset",
+        action="store_true",
+        default=False,
+        help="Whether or not to CPU load balance with taskset",
     )
 
     # Add Taskset and GPU arguments
     args = parser.parse_args()
-    assert isinstance(args.valid_gpus, list) or args.valid_gpus is None, "Valid GPUs must be a list of ints or None."
-    assert isinstance(args.valid_cpus, list) or args.valid_cpus is None, "Valid CPUs must be a list"
+    assert (
+        isinstance(args.valid_gpus, list) or args.valid_gpus is None
+    ), "Valid GPUs must be a list of ints or None."
+    assert (
+        isinstance(args.valid_cpus, list) or args.valid_cpus is None
+    ), "Valid CPUs must be a list"
     if args.gpus is not None:
         assert (
             isinstance(args.valid_gpus, list) and len(args.valid_gpus) >= args.gpus
@@ -84,7 +101,12 @@ if __name__ == "__main__":
                     else:
                         env = None
 
-                    print("[Local Sweeper] launching script on gpu:", job_gpus, "and cpus:", job_cpus)
+                    print(
+                        "[Local Sweeper] launching script on gpu:",
+                        job_gpus,
+                        "and cpus:",
+                        job_cpus,
+                    )
                     proc = subprocess.Popen(command_list, env=env)
                     processes.append(proc)
 

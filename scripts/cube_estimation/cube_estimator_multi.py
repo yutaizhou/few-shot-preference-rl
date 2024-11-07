@@ -75,11 +75,15 @@ def relativePosition(rvec1, tvec1, rvec2, tvec2):
 
 # construct the argument parser and parse the arguments
 ap = argparse.ArgumentParser()
-ap.add_argument("-t", "--type", type=str, default="DICT_4X4_50", help="type of ArUCo tag to detect")
+ap.add_argument(
+    "-t", "--type", type=str, default="DICT_4X4_50", help="type of ArUCo tag to detect"
+)
 ap.add_argument("-c", "--calibration", type=str, default="calibration.yaml")
 args = vars(ap.parse_args())
 
-reference_rvec_1, reference_tvec_1, reference_rvec_2, reference_tvec_2 = load_coefficients(args["calibration"])
+reference_rvec_1, reference_tvec_1, reference_rvec_2, reference_tvec_2 = (
+    load_coefficients(args["calibration"])
+)
 position_buffer = deque(maxlen=6)
 
 if os.path.exists(DATA_PATH):
@@ -110,7 +114,11 @@ frames_1 = pipeline_1.wait_for_frames()
 frame_1 = frames_1.get_color_frame()
 color_intrinsics_1 = frame_1.profile.as_video_stream_profile().intrinsics
 matrix_coefficients_1 = np.array(
-    [[color_intrinsics_1.fx, 0, color_intrinsics_1.ppx], [0, color_intrinsics_1.fy, color_intrinsics_1.ppy], [0, 0, 1]]
+    [
+        [color_intrinsics_1.fx, 0, color_intrinsics_1.ppx],
+        [0, color_intrinsics_1.fy, color_intrinsics_1.ppy],
+        [0, 0, 1],
+    ]
 )
 distortion_coefficients_1 = np.asarray(color_intrinsics_1.coeffs)
 
@@ -123,7 +131,11 @@ frames_2 = pipeline_2.wait_for_frames()
 frame_2 = frames_2.get_color_frame()
 color_intrinsics_2 = frame_2.profile.as_video_stream_profile().intrinsics
 matrix_coefficients_2 = np.array(
-    [[color_intrinsics_2.fx, 0, color_intrinsics_2.ppx], [0, color_intrinsics_2.fy, color_intrinsics_2.ppy], [0, 0, 1]]
+    [
+        [color_intrinsics_2.fx, 0, color_intrinsics_2.ppx],
+        [0, color_intrinsics_2.fy, color_intrinsics_2.ppy],
+        [0, 0, 1],
+    ]
 )
 distortion_coefficients_2 = np.asarray(color_intrinsics_2.coeffs)
 
@@ -154,7 +166,9 @@ while True:
     frame = np.asarray(frame.get_data())
 
     # detect ArUco markers in the input frame
-    (corners, ids, rejected) = cv2.aruco.detectMarkers(frame, arucoDict, parameters=arucoParams)
+    (corners, ids, rejected) = cv2.aruco.detectMarkers(
+        frame, arucoDict, parameters=arucoParams
+    )
 
     cv2.aruco.drawDetectedMarkers(frame, corners)  # Draw A square around the markers
 
@@ -169,9 +183,18 @@ while True:
             rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(
                 markerCorner, MARKER_SIZE, matrix_coefficients, distortion_coefficients
             )
-            cv2.aruco.drawAxis(frame, matrix_coefficients, distortion_coefficients, rvec, tvec, MARKER_SIZE / 2)
+            cv2.aruco.drawAxis(
+                frame,
+                matrix_coefficients,
+                distortion_coefficients,
+                rvec,
+                tvec,
+                MARKER_SIZE / 2,
+            )
             # Now we have the vectors needed
-            composedRvec, composedTvec = relativePosition(rvec, tvec, reference_rvec, reference_tvec)
+            composedRvec, composedTvec = relativePosition(
+                rvec, tvec, reference_rvec, reference_tvec
+            )
             # Now compute the actual center of the marker cube
             cube_center = np.array([[0, 0, -MARKER_SIZE / 2]]).T
             rot_mat, _ = cv2.Rodrigues(composedRvec)

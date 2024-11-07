@@ -32,10 +32,18 @@ class FeedbackLabelDataset(torch.utils.data.IterableDataset):
         self._idx = 0
 
         # Construct the buffers
-        self.obs_1_buffer = np_dataset_alloc(observation_space, self._capacity, begin_pad=(self.segment_size,))
-        self.obs_2_buffer = np_dataset_alloc(observation_space, self._capacity, begin_pad=(self.segment_size,))
-        self.action_1_buffer = np_dataset_alloc(action_space, self._capacity, begin_pad=(self.segment_size,))
-        self.action_2_buffer = np_dataset_alloc(action_space, self._capacity, begin_pad=(self.segment_size,))
+        self.obs_1_buffer = np_dataset_alloc(
+            observation_space, self._capacity, begin_pad=(self.segment_size,)
+        )
+        self.obs_2_buffer = np_dataset_alloc(
+            observation_space, self._capacity, begin_pad=(self.segment_size,)
+        )
+        self.action_1_buffer = np_dataset_alloc(
+            action_space, self._capacity, begin_pad=(self.segment_size,)
+        )
+        self.action_2_buffer = np_dataset_alloc(
+            action_space, self._capacity, begin_pad=(self.segment_size,)
+        )
         self.label_buffer = np_dataset_alloc(0.5, self._capacity)
 
     def add(self, queries: Dict, labels: np.ndarray):
@@ -46,7 +54,9 @@ class FeedbackLabelDataset(torch.utils.data.IterableDataset):
             # We have more segments than capacity allows, complete in two writes.
             num_b4_wrap = self._capacity - self._idx
             self.add(get_from_batch(queries, 0, num_b4_wrap), labels[:num_b4_wrap])
-            self.add(get_from_batch(queries, num_b4_wrap, num_to_add), labels[num_b4_wrap:])
+            self.add(
+                get_from_batch(queries, num_b4_wrap, num_to_add), labels[num_b4_wrap:]
+            )
         else:
             start, end = self._idx, self._idx + num_to_add
             set_in_batch(self.obs_1_buffer, queries["obs_1"], start, end)
@@ -64,16 +74,24 @@ class FeedbackLabelDataset(torch.utils.data.IterableDataset):
         action_2 = self.action_2_buffer[idxs]
         label = self.label_buffer[idxs]
         # Note: we don't need to sample the states for this
-        return dict(obs_1=obs_1, obs_2=obs_2, action_1=action_1, action_2=action_2, label=label)
+        return dict(
+            obs_1=obs_1, obs_2=obs_2, action_1=action_1, action_2=action_2, label=label
+        )
 
     def __len__(self):
         return self._size
 
     def __iter__(self):
-        assert torch.utils.data.get_worker_info() is None, "FeedbackLabel Dataset is not designed for parallelism."
+        assert (
+            torch.utils.data.get_worker_info() is None
+        ), "FeedbackLabel Dataset is not designed for parallelism."
         idxs = np.random.permutation(len(self))
-        for i in range(math.ceil(len(self) / self.batch_size)):  # Need to use ceil to get all data points.
-            cur_idxs = idxs[i * self.batch_size : min((i + 1) * self.batch_size, len(self))]
+        for i in range(
+            math.ceil(len(self) / self.batch_size)
+        ):  # Need to use ceil to get all data points.
+            cur_idxs = idxs[
+                i * self.batch_size : min((i + 1) * self.batch_size, len(self))
+            ]
             yield self._sample(cur_idxs)
 
 
@@ -97,15 +115,25 @@ class MultiTaskOracleFeedbackDataset(torch.utils.data.IterableDataset):
         self._id_to_task = {v: k for k, v in self._task_to_id.items()}
         self._datasets = {}
         for task, p in zip(task_names, paths):
-            replay_buffer = ReplayBuffer(observation_space, action_space, path=p, distributed=False, **kwargs)
+            replay_buffer = ReplayBuffer(
+                observation_space, action_space, path=p, distributed=False, **kwargs
+            )
             dataset = FeedbackLabelDataset(
-                observation_space, action_space, capacity=capacity, segment_size=segment_size, **kwargs
+                observation_space,
+                action_space,
+                capacity=capacity,
+                segment_size=segment_size,
+                **kwargs,
             )
             # Sample segments from the replay buffer like in PEBBLE
-            batch = replay_buffer.sample(batch_size=2 * capacity, stack=segment_size, pad=0)
+            batch = replay_buffer.sample(
+                batch_size=2 * capacity, stack=segment_size, pad=0
+            )
             # Compute the discounted reward across each segment to be used for oracle labels
             returns = np.sum(
-                batch["reward"] * np.power(replay_buffer.discount, np.arange(batch["reward"].shape[1])), axis=1
+                batch["reward"]
+                * np.power(replay_buffer.discount, np.arange(batch["reward"].shape[1])),
+                axis=1,
             )
             queries = dict(
                 obs_1=batch["obs"][:capacity],
@@ -121,7 +149,9 @@ class MultiTaskOracleFeedbackDataset(torch.utils.data.IterableDataset):
             print("Finished", task)
 
     def __iter__(self):
-        assert torch.utils.data.get_worker_info() is None, "FeedbackLabel Dataset is not designed for parallelism."
+        assert (
+            torch.utils.data.get_worker_info() is None
+        ), "FeedbackLabel Dataset is not designed for parallelism."
         iterators = {task: iter(dataset) for task, dataset in self._datasets.items()}
         while True:
             for task, iterator in iterators.items():

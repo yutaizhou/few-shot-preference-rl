@@ -34,34 +34,58 @@ def get_model_and_assets():
 
 
 @SUITE.add()
-def reach(time_limit=_DEFAULT_TIME_LIMIT, random=None, target_pos=(-1, 1), target_size=0.015, environment_kwargs=None):
+def reach(
+    time_limit=_DEFAULT_TIME_LIMIT,
+    random=None,
+    target_pos=(-1, 1),
+    target_size=0.015,
+    environment_kwargs=None,
+):
     """Returns the hard point_mass task."""
     physics = Physics.from_xml_string(*get_model_and_assets())
     task = PointMassGoal(target_pos=target_pos, target_size=target_size, random=random)
     environment_kwargs = environment_kwargs or {}
-    return control.Environment(physics, task, time_limit=time_limit, **environment_kwargs)
+    return control.Environment(
+        physics, task, time_limit=time_limit, **environment_kwargs
+    )
 
 
 @SUITE.add()
 def reach_l2(
-    time_limit=_DEFAULT_TIME_LIMIT, random=None, target_pos=(-1, 1), target_size=0.015, environment_kwargs=None
+    time_limit=_DEFAULT_TIME_LIMIT,
+    random=None,
+    target_pos=(-1, 1),
+    target_size=0.015,
+    environment_kwargs=None,
 ):
     """Returns the hard point_mass task."""
     physics = Physics.from_xml_string(*get_model_and_assets())
-    task = PointMassGoalL2(target_pos=target_pos, target_size=target_size, random=random)
+    task = PointMassGoalL2(
+        target_pos=target_pos, target_size=target_size, random=random
+    )
     environment_kwargs = environment_kwargs or {}
-    return control.Environment(physics, task, time_limit=time_limit, **environment_kwargs)
+    return control.Environment(
+        physics, task, time_limit=time_limit, **environment_kwargs
+    )
 
 
 @SUITE.add()
 def reach_l2_random(
-    time_limit=_DEFAULT_TIME_LIMIT, random=None, target_pos=(-1, 1), target_size=0.015, environment_kwargs=None
+    time_limit=_DEFAULT_TIME_LIMIT,
+    random=None,
+    target_pos=(-1, 1),
+    target_size=0.015,
+    environment_kwargs=None,
 ):
     """Returns the hard point_mass task."""
     physics = Physics.from_xml_string(*get_model_and_assets())
-    task = PointMassGoalL2Random(target_pos=target_pos, target_size=target_size, random=random)
+    task = PointMassGoalL2Random(
+        target_pos=target_pos, target_size=target_size, random=random
+    )
     environment_kwargs = environment_kwargs or {}
-    return control.Environment(physics, task, time_limit=time_limit, **environment_kwargs)
+    return control.Environment(
+        physics, task, time_limit=time_limit, **environment_kwargs
+    )
 
 
 class Physics(mujoco.Physics):
@@ -69,7 +93,9 @@ class Physics(mujoco.Physics):
 
     def mass_to_target(self):
         """Returns the vector from mass to target in global coordinate."""
-        return self.named.data.geom_xpos["target"] - self.named.data.geom_xpos["pointmass"]
+        return (
+            self.named.data.geom_xpos["target"] - self.named.data.geom_xpos["pointmass"]
+        )
 
     def mass_to_target_dist(self):
         """Returns the distance from mass to the target."""
@@ -103,8 +129,12 @@ class PointMassGoal(base.Task):
     def get_reward(self, physics):
         """Returns a reward to the agent."""
         target_size = physics.named.model.geom_size["target", 0]
-        near_target = rewards.tolerance(physics.mass_to_target_dist(), bounds=(0, target_size), margin=target_size)
-        control_reward = rewards.tolerance(physics.control(), margin=1, value_at_margin=0, sigmoid="quadratic").mean()
+        near_target = rewards.tolerance(
+            physics.mass_to_target_dist(), bounds=(0, target_size), margin=target_size
+        )
+        control_reward = rewards.tolerance(
+            physics.control(), margin=1, value_at_margin=0, sigmoid="quadratic"
+        ).mean()
         small_control = (control_reward + 4) / 5
         return near_target * small_control
 

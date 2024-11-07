@@ -59,7 +59,9 @@ class CSVWriter(Writer):
         if self._csv_file_handler is not None:
             self._csv_file_handler.close()  # Close our fds
         self.csv_file_handler = open(os.path.join(self.path, "log.csv"), "w")
-        self.csv_logger = csv.DictWriter(self.csv_file_handler, fieldnames=list(self.values.keys()))
+        self.csv_logger = csv.DictWriter(
+            self.csv_file_handler, fieldnames=list(self.values.keys())
+        )
         self.csv_logger.writeheader()
 
     def _dump(self, step):
@@ -95,7 +97,11 @@ class Logger(object):
     def __init__(self, path: str, writers: List[str] = ["tb", "csv"]):
         self.writers = []
         for writer in writers:
-            self.writers.append({"tb": TensorBoardWriter, "csv": CSVWriter, "wandb": WandBWriter}[writer](path))
+            self.writers.append(
+                {"tb": TensorBoardWriter, "csv": CSVWriter, "wandb": WandBWriter}[
+                    writer
+                ](path)
+            )
 
     def record(self, key: str, value: Any) -> None:
         for writer in self.writers:

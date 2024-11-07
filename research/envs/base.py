@@ -42,7 +42,6 @@ def _get_space(low=None, high=None, shape=None, dtype=None):
 
 
 class Empty(gym.Env):
-
     """
     An empty holder for defining supervised learning problems
     It works by specifying the ranges and shapes.
@@ -59,8 +58,12 @@ class Empty(gym.Env):
         action_shape=None,
         action_dtype=np.float32,
     ):
-        self.observation_space = _get_space(observation_low, observation_high, observation_shape, observation_dtype)
-        self.action_space = _get_space(action_low, action_high, action_shape, action_dtype)
+        self.observation_space = _get_space(
+            observation_low, observation_high, observation_shape, observation_dtype
+        )
+        self.action_space = _get_space(
+            action_low, action_high, action_shape, action_dtype
+        )
 
     def step(self, action):
         raise NotImplementedError("Empty Env does not have step")

@@ -7,10 +7,20 @@ import cv2
 import numpy as np
 
 ap = argparse.ArgumentParser()
-ap.add_argument("-o", "--output", required=True, help="path to output image containing ArUCo tag")
-ap.add_argument("-t", "--type", type=str, default="DICT_4X4_50", help="type of ArUCo tag to generate")
+ap.add_argument(
+    "-o", "--output", required=True, help="path to output image containing ArUCo tag"
+)
+ap.add_argument(
+    "-t",
+    "--type",
+    type=str,
+    default="DICT_4X4_50",
+    help="type of ArUCo tag to generate",
+)
 ap.add_argument("-n", "--num", type=int, default=10, help="number of tags to generate")
-ap.add_argument("-s", "--start", type=int, default=25, help="Index to start generation at")
+ap.add_argument(
+    "-s", "--start", type=int, default=25, help="Index to start generation at"
+)
 args = vars(ap.parse_args())
 
 # define names of each possible ArUco tag OpenCV supports
@@ -59,6 +69,8 @@ for id in range(args["num"]):
     cv2.aruco.drawMarker(arucoDict, id, 250, tag, 1)
     # write the generated ArUCo tag to disk and then display it to our
     # screen
-    cv2.imwrite(os.path.join(args["output"], args["type"] + "_" + str(id) + ".png"), tag)
+    cv2.imwrite(
+        os.path.join(args["output"], args["type"] + "_" + str(id) + ".png"), tag
+    )
     cv2.imshow("ArUCo Tag", tag)
     cv2.waitKey(0)

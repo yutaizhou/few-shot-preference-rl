@@ -31,7 +31,9 @@ def plot_run(
     **kwargs,
 ) -> None:
     for path in paths:
-        assert LOG_FILE_NAME in os.listdir(path), "Did not find log file, found " + " ".join(os.listdir(path))
+        assert LOG_FILE_NAME in os.listdir(path), (
+            "Did not find log file, found " + " ".join(os.listdir(path))
+        )
     for y_key in y_keys:
         xs, ys = [], []
         for path in paths:
@@ -54,7 +56,16 @@ def plot_run(
         plot_df = pd.DataFrame({x_key: xs, y_key: ys})
         label = name + " " + y_key if len(y_keys) > 1 else name
         ci = "sd" if len(paths) > 0 else None
-        sns.lineplot(ax=ax, x=x_key, y=y_key, data=plot_df, sort=True, ci=ci, label=label, **kwargs)
+        sns.lineplot(
+            ax=ax,
+            x=x_key,
+            y=y_key,
+            data=plot_df,
+            sort=True,
+            ci=ci,
+            label=label,
+            **kwargs,
+        )
 
 
 def create_plot(
@@ -67,12 +78,16 @@ def create_plot(
     ylabel: Optional[str] = None,
     **kwargs,
 ):
-    assert len(labels) == len(labels), "The length of paths must the same as the length of labels"
+    assert len(labels) == len(
+        labels
+    ), "The length of paths must the same as the length of labels"
     ax = plt.gca() if ax is None else ax
 
     # Setup the color map
     if color_map is None:
-        color_map = {labels[i]: i % len(sns.color_palette()) for i in range(len(labels))}
+        color_map = {
+            labels[i]: i % len(sns.color_palette()) for i in range(len(labels))
+        }
     for k in color_map.keys():
         if isinstance(color_map[k], int):
             color_map[k] = sns.color_palette()[color_map[k]]
@@ -142,7 +157,11 @@ def plot_from_config(config_path: str) -> None:
 
     # Note that grid shape is given as (rows, cols)
     assert len(config["plots"]) == grid_shape[0] * grid_shape[1]
-    figsize = (2 * grid_shape[1], grid_shape[0]) if config.get("fig_size") is None else config.get("fig_size")
+    figsize = (
+        (2 * grid_shape[1], grid_shape[0])
+        if config.get("fig_size") is None
+        else config.get("fig_size")
+    )
 
     legend_pos = config.get("legend_pos")
     assert legend_pos in {"first", "last", "bottom", None}
@@ -156,19 +175,33 @@ def plot_from_config(config_path: str) -> None:
     fig, axes = plt.subplots(*grid_shape, figsize=figsize)
 
     # Determine if we should include xlabels or ylabels
-    use_xlabels = any(["xlabel" in plot.get("kwargs", {}) for plot in config["plots"].values()])
-    use_ylabels = any(["ylabel" in plot.get("kwargs", {}) for plot in config["plots"].values()])
+    use_xlabels = any(
+        ["xlabel" in plot.get("kwargs", {}) for plot in config["plots"].values()]
+    )
+    use_ylabels = any(
+        ["ylabel" in plot.get("kwargs", {}) for plot in config["plots"].values()]
+    )
 
     for i, (plot_title, plot_config) in enumerate(config["plots"].items()):
         y_index, x_index = i // grid_shape[1], i % grid_shape[1]
         ax = axes.flat[i]
 
-        paths, labels = list(plot_config["methods"].values()), list(plot_config["methods"].keys())
+        paths, labels = (
+            list(plot_config["methods"].values()),
+            list(plot_config["methods"].keys()),
+        )
         plot_title = plot_title if config.get("use_subplot_titles") else None
         plot_kwargs = config.get("kwargs", dict()).copy()
         plot_kwargs.update(plot_config.get("kwargs", {}))
 
-        create_plot(paths, labels, ax, plot_title, color_map=config.get("color_map"), **plot_kwargs)
+        create_plot(
+            paths,
+            labels,
+            ax,
+            plot_title,
+            color_map=config.get("color_map"),
+            **plot_kwargs,
+        )
 
         if x_index != 0 and not use_ylabels:
             ax.set_ylabel(None)
@@ -194,7 +227,13 @@ def plot_from_config(config_path: str) -> None:
     # If the legend is set to the bottom do it here
     if legend_pos == "bottom":
         handles, labels = ax.get_legend_handles_labels()
-        fig.legend(handles, labels, loc="lower left", ncol=len(handles), bbox_to_anchor=(0.25, -0.01))
+        fig.legend(
+            handles,
+            labels,
+            loc="lower left",
+            ncol=len(handles),
+            bbox_to_anchor=(0.25, -0.01),
+        )
         rect[1] += 0.05
 
     plt.tight_layout(pad=0, rect=rect)

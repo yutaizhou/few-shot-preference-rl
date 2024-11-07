@@ -105,7 +105,9 @@ class Config(object):
 
     def __setitem__(self, key: str, value: Any):
         if key not in self.config:
-            raise ValueError("Attempting to set an out of structure key. Configs must follow the format in config.py")
+            raise ValueError(
+                "Attempting to set an out of structure key. Configs must follow the format in config.py"
+            )
         self.config[key] = value
 
     def __contains__(self, key: str) -> bool:

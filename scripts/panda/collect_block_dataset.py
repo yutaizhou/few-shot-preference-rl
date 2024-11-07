@@ -23,14 +23,19 @@ def collect_random_episode(env: gym.Env, dataset: ReplayBuffer) -> None:
         episode_length += 1
         if "discount" in info:
             discount = info["discount"]
-        elif hasattr(env, "_max_episode_steps") and episode_length == env._max_episode_steps:
+        elif (
+            hasattr(env, "_max_episode_steps")
+            and episode_length == env._max_episode_steps
+        ):
             discount = 1.0
         else:
             discount = 1 - float(done)
         dataset.add(obs, action, reward, done, discount)
 
 
-def collect_policy_episode(env: gym.Env, model: Algorithm, dataset: ReplayBuffer, noise: float = 0.1):
+def collect_policy_episode(
+    env: gym.Env, model: Algorithm, dataset: ReplayBuffer, noise: float = 0.1
+):
     obs = env.reset()
     dataset.add(obs)
     episode_length = 0
@@ -44,7 +49,10 @@ def collect_policy_episode(env: gym.Env, model: Algorithm, dataset: ReplayBuffer
         success_count += int(info["success"])
         if "discount" in info:
             discount = info["discount"]
-        elif hasattr(env, "_max_episode_steps") and episode_length == env._max_episode_steps:
+        elif (
+            hasattr(env, "_max_episode_steps")
+            and episode_length == env._max_episode_steps
+        ):
             discount = 1.0
         else:
             discount = 1 - float(done)
@@ -63,7 +71,9 @@ def collect_dataset(
 ) -> None:
     config = Config.load(task_path)
     config["env_kwargs"]["initialization_noise"] = init_noise
-    expert_model = load(config, os.path.join(task_path, "best_model.pt"), device="auto", strict=False)
+    expert_model = load(
+        config, os.path.join(task_path, "best_model.pt"), device="auto", strict=False
+    )
     del expert_model.eval_env
     env = expert_model.env
     dataset = ReplayBuffer(
@@ -80,7 +90,9 @@ def collect_dataset(
             num_ep = expert_ep
             used_expert = True
         else:
-            current_model = load_from_path(os.path.join(policy_path, "best_model.pt"), device="auto", strict=False)
+            current_model = load_from_path(
+                os.path.join(policy_path, "best_model.pt"), device="auto", strict=False
+            )
             del current_model.env
             del current_model.eval_env
             num_ep = cross_ep
@@ -106,7 +118,9 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    policy_paths = sorted([os.path.join(args.policies, p) for p in os.listdir(args.policies)])
+    policy_paths = sorted(
+        [os.path.join(args.policies, p) for p in os.listdir(args.policies)]
+    )
     if args.seed is None:
         task_paths = policy_paths.copy()
     else:

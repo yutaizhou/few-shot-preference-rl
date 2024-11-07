@@ -42,7 +42,9 @@ class Algorithm(ABC):
         self,
         env: gym.Env,
         network_class: Type[torch.nn.Module],
-        dataset_class: Union[Type[torch.utils.data.IterableDataset], Type[torch.utils.data.Dataset]],
+        dataset_class: Union[
+            Type[torch.utils.data.IterableDataset], Type[torch.utils.data.Dataset]
+        ],
         network_kwargs: Dict = {},
         dataset_kwargs: Dict = {},
         device: Union[str, torch.device] = "auto",
@@ -87,7 +89,9 @@ class Algorithm(ABC):
             try:
                 self.load(checkpoint, strict=True)
             except:
-                print("[research] Warning: Loading in non-strict mode, thus optimizer may be skipped.")
+                print(
+                    "[research] Warning: Loading in non-strict mode, thus optimizer may be skipped."
+                )
                 self.load(checkpoint, strict=False)
 
     @property
@@ -108,21 +112,35 @@ class Algorithm(ABC):
         else:
             raise ValueError("Neither env or eval_env was provided.")
 
-    def setup_processor(self, processor_class: Optional[Type[Processor]], processor_kwargs: Dict) -> None:
+    def setup_processor(
+        self, processor_class: Optional[Type[Processor]], processor_kwargs: Dict
+    ) -> None:
         if processor_class is None:
-            self.processor = IdentityProcessor(self.observation_space, self.action_space)
+            self.processor = IdentityProcessor(
+                self.observation_space, self.action_space
+            )
         else:
-            self.processor = processor_class(self.observation_space, self.action_space, **processor_kwargs)
+            self.processor = processor_class(
+                self.observation_space, self.action_space, **processor_kwargs
+            )
 
-        if self.processor.supports_gpu:  # move it to device if it supports GPU computation.
+        if (
+            self.processor.supports_gpu
+        ):  # move it to device if it supports GPU computation.
             self.processor = self.processor.to(self.device)
 
-    def setup_network(self, network_class: Type[torch.nn.Module], network_kwargs: Dict) -> None:
+    def setup_network(
+        self, network_class: Type[torch.nn.Module], network_kwargs: Dict
+    ) -> None:
         self.network = network_class(
-            self.processor.observation_space, self.processor.action_space, **network_kwargs
+            self.processor.observation_space,
+            self.processor.action_space,
+            **network_kwargs,
         ).to(self.device)
 
-    def setup_optimizers(self, optim_class: Type[torch.optim.Optimizer], optim_kwargs: Dict) -> None:
+    def setup_optimizers(
+        self, optim_class: Type[torch.optim.Optimizer], optim_kwargs: Dict
+    ) -> None:
         # Default optimizer initialization
         self.optim["network"] = optim_class(self.network.parameters(), **optim_kwargs)
 
@@ -132,7 +150,9 @@ class Algorithm(ABC):
         Everything must be saved apriori. This is done to ensure that we don't need to load all of the data to load
         the model.
         """
-        self.dataset = self.dataset_class(self.observation_space, self.action_space, **self.dataset_kwargs)
+        self.dataset = self.dataset_class(
+            self.observation_space, self.action_space, **self.dataset_kwargs
+        )
         if self.validation_dataset_kwargs is not None:
             validation_dataset_kwargs = copy.deepcopy(self.dataset_kwargs)
             validation_dataset_kwargs.update(self.validation_dataset_kwargs)
@@ -147,7 +167,11 @@ class Algorithm(ABC):
         Saves a checkpoint of the model and the optimizers
         """
         optim = {k: v.state_dict() for k, v in self.optim.items()}
-        save_dict = {"network": self.network.state_dict(), "optim": optim, "processor": self.processor.state_dict()}
+        save_dict = {
+            "network": self.network.state_dict(),
+            "optim": optim,
+            "processor": self.processor.state_dict(),
+        }
         save_dict.update(self._save_extras())
         torch.save(save_dict, os.path.join(path, extension + ".pt"))
 
@@ -157,7 +181,9 @@ class Algorithm(ABC):
         """
         return {}
 
-    def load(self, checkpoint: str, initial_lr: Optional[float] = None, strict: bool = True) -> None:
+    def load(
+        self, checkpoint: str, initial_lr: Optional[float] = None, strict: bool = True
+    ) -> None:
         """
         Loads the model and its associated checkpoints.
         """
@@ -168,7 +194,9 @@ class Algorithm(ABC):
 
         for k, v in self.optim.items():
             if strict and k not in checkpoint["optim"]:
-                raise ValueError("Strict mode was enabled, but couldn't find optimizer key")
+                raise ValueError(
+                    "Strict mode was enabled, but couldn't find optimizer key"
+                )
             elif k not in checkpoint["optim"]:
                 continue
 
@@ -215,7 +243,9 @@ class Algorithm(ABC):
         if hasattr(self, "_total_steps"):
             return self._total_steps
         else:
-            raise ValueError("alg.train has not been called, no total step count available.")
+            raise ValueError(
+                "alg.train has not been called, no total step count available."
+            )
 
     def _format_batch(self, batch: Any) -> Any:
         # Convert items to tensor if they are not.
@@ -283,7 +313,9 @@ class Algorithm(ABC):
         for k in schedule.keys():
             if schedule[k] is not None:
                 assert k in self.optim, "Did not find schedule key in optimizers dict."
-                schedulers[k] = schedule[k](self.optim[k], **schedule_kwargs.get(k, dict()))
+                schedulers[k] = schedule[k](
+                    self.optim[k], **schedule_kwargs.get(k, dict())
+                )
 
         # Grab the correct evaluation function
         eval_fn = None if eval_fn is None else vars(evaluate)[eval_fn]
@@ -294,7 +326,9 @@ class Algorithm(ABC):
         self._total_steps = total_steps
         current_step = 0
         train_metric_lists = defaultdict(list)
-        best_validation_metric = -1 * float("inf") if loss_metric in MAX_VALID_METRICS else float("inf")
+        best_validation_metric = (
+            -1 * float("inf") if loss_metric in MAX_VALID_METRICS else float("inf")
+        )
         last_train_log = -log_freq  # Ensure that we log on the first step
         last_validation_log = -eval_freq  # Ensure that we log on the first step
 
@@ -318,18 +352,24 @@ class Algorithm(ABC):
 
                 if profile_freq > 0 and self._steps % profile_freq == 0:
                     stop_time = time.time()
-                    profiling_metric_lists["preprocess"].append(stop_time - current_time)
+                    profiling_metric_lists["preprocess"].append(
+                        stop_time - current_time
+                    )
                     current_time = stop_time
 
                 # Train the network
-                assert self.network.training, "Network was not in training mode and trainstep was called."
+                assert (
+                    self.network.training
+                ), "Network was not in training mode and trainstep was called."
                 train_metrics = self._train_step(batch)
                 for metric_name, metric_value in train_metrics.items():
                     train_metric_lists[metric_name].append(metric_value)
 
                 if profile_freq > 0 and self._steps % profile_freq == 0:
                     stop_time = time.time()
-                    profiling_metric_lists["train_step"].append(stop_time - current_time)
+                    profiling_metric_lists["train_step"].append(
+                        stop_time - current_time
+                    )
 
                 # Update the schedulers
                 for scheduler in schedulers.values():
@@ -349,7 +389,8 @@ class Algorithm(ABC):
                     logger.record("time/steps", self._steps)
                     logger.record("time/epochs", self._epochs)
                     logger.record(
-                        "time/steps_per_second", (current_step - last_train_log) / (current_time - start_time)
+                        "time/steps_per_second",
+                        (current_step - last_train_log) / (current_time - start_time),
                     )
                     start_time = current_time
                     # Record Other metrics
@@ -370,17 +411,23 @@ class Algorithm(ABC):
                             batch = self._format_batch(batch)
                             losses = self._validation_step(batch)
                             for metric_name, metric_value in losses.items():
-                                validation_metric_lists[metric_name].append(metric_value)
+                                validation_metric_lists[metric_name].append(
+                                    metric_value
+                                )
                             eval_steps += 1
                             if eval_steps == max_eval_steps:
                                 break
 
                         if loss_metric in validation_metric_lists:
-                            current_validation_metric = np.mean(validation_metric_lists[loss_metric])
+                            current_validation_metric = np.mean(
+                                validation_metric_lists[loss_metric]
+                            )
                         log_from_dict(logger, validation_metric_lists, "valid")
 
                     # Now run any extra validation steps, independent of the validation dataset.
-                    validation_extras = self._validation_extras(path, self._steps, validation_dataloader)
+                    validation_extras = self._validation_extras(
+                        path, self._steps, validation_dataloader
+                    )
                     if loss_metric in validation_extras:
                         current_validation_metric = validation_extras[loss_metric]
                     log_from_dict(logger, validation_extras, "valid")
@@ -394,7 +441,10 @@ class Algorithm(ABC):
 
                     if current_validation_metric is None:
                         pass
-                    elif loss_metric in MAX_VALID_METRICS and current_validation_metric > best_validation_metric:
+                    elif (
+                        loss_metric in MAX_VALID_METRICS
+                        and current_validation_metric > best_validation_metric
+                    ):
                         self.save(path, "best_model")
                         best_validation_metric = current_validation_metric
                     elif current_validation_metric < best_validation_metric:
@@ -402,9 +452,13 @@ class Algorithm(ABC):
                         best_validation_metric = current_validation_metric
 
                     # Eval Logger Dump to CSV
-                    logger.dump(step=current_step, eval=True)  # Mark True on the eval flag
+                    logger.dump(
+                        step=current_step, eval=True
+                    )  # Mark True on the eval flag
                     last_validation_log = current_step
-                    self.save(path, "final_model")  # Also save the final model every eval period.
+                    self.save(
+                        path, "final_model"
+                    )  # Also save the final model every eval period.
                     self.train_mode()
 
                 # Increment the number of training steps.
@@ -440,7 +494,9 @@ class Algorithm(ABC):
         """
         pass
 
-    def _validation_extras(self, path: str, step: int, dataloader: Optional[torch.utils.data.DataLoader]) -> Dict:
+    def _validation_extras(
+        self, path: str, step: int, dataloader: Optional[torch.utils.data.DataLoader]
+    ) -> Dict:
         """
         perform any extra validation operations
         """
@@ -462,7 +518,9 @@ class Algorithm(ABC):
         """
         with torch.no_grad():
             if len(kwargs) > 0:
-                raise ValueError("Default predict method does not accept key word args, but they were provided.")
+                raise ValueError(
+                    "Default predict method does not accept key word args, but they were provided."
+                )
             pred = self.network(batch)
         return pred
 

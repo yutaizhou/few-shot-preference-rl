@@ -10,10 +10,14 @@ from research.utils.trainer import load
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--path", type=str, required=True, help="Path to the model")
-    parser.add_argument("--output", type=str, default=None, required=False, help="Path to save the gif")
+    parser.add_argument(
+        "--output", type=str, default=None, required=False, help="Path to save the gif"
+    )
     parser.add_argument("--device", "-d", type=str, default="auto")
     parser.add_argument("--num-ep", type=int, default=1, help="Number of episodes")
-    parser.add_argument("--every-n-frames", type=int, default=2, help="Save every n frames to the gif.")
+    parser.add_argument(
+        "--every-n-frames", type=int, default=2, help="Save every n frames to the gif."
+    )
     parser.add_argument("--width", type=int, default=160, help="Width of image")
     parser.add_argument("--height", type=int, default=120, help="Height of image")
     parser.add_argument("--strict", action="store_true", default=False, help="Strict")
@@ -24,7 +28,9 @@ if __name__ == "__main__":
         default=[],
         help="Set kv pairs used as args for the entry point script.",
     )
-    parser.add_argument("--max-len", type=int, default=1000, help="maximum length of an episode.")
+    parser.add_argument(
+        "--max-len", type=int, default=1000, help="maximum length of an episode."
+    )
     args = parser.parse_args()
 
     assert args.path.endswith(".pt"), "Must provide a model checkpoint"
@@ -49,7 +55,11 @@ if __name__ == "__main__":
         print(config)
 
     save_gif = args.output is not None
-    render_kwargs = dict(mode="rgb_array", width=args.width, height=args.height) if save_gif else dict()
+    render_kwargs = (
+        dict(mode="rgb_array", width=args.width, height=args.height)
+        if save_gif
+        else dict()
+    )
 
     model = load(config, args.path, device=args.device, strict=args.strict)
     model.eval_mode()  # Place the model in evaluation mode
@@ -71,7 +81,9 @@ if __name__ == "__main__":
                 frames.append(frame)
             ep_reward += reward
             ep_length += 1
-            if ("success" in info and info["success"]) or ("is_success" in info and info["is_success"]):
+            if ("success" in info and info["success"]) or (
+                "is_success" in info and info["is_success"]
+            ):
                 print("[research] Episode success, terminating early.")
                 done = True
         ep_rewards.append(ep_reward)

@@ -2,6 +2,7 @@
 Simple wrapper for registering metaworld enviornments
 properly with gym.
 """
+
 import gym
 import metaworld
 import numpy as np
@@ -53,6 +54,10 @@ class SawyerEnv(gym.Env):
     def render(self, mode="rgb_array", width=640, height=480):
         assert mode == "rgb_array", "Only RGB array is supported"
         # stack multiple views
-        view_1 = self._env.render(offscreen=True, camera_name="corner", resolution=(width, height))
-        view_2 = self._env.render(offscreen=True, camera_name="topview", resolution=(width, height))
+        view_1 = self._env.render(
+            offscreen=True, camera_name="corner", resolution=(width, height)
+        )
+        view_2 = self._env.render(
+            offscreen=True, camera_name="topview", resolution=(width, height)
+        )
         return np.concatenate((view_1, view_2), axis=0)

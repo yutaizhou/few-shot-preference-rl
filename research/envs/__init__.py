@@ -1,24 +1,19 @@
 # Register environment classes here
-from .base import Empty
+# Register the DM Control environments.
+from dm_control import suite
 
 # If we want to register environments in gym.
 # These will be loaded when we import the research package.
 from gym.envs import register
 
-
-# Register the DM Control environments.
-from dm_control import suite
-
 # Custom DM Control domains can be registered as follows:
 # from . import <custom dm_env module>
 # assert hasattr(<custom dm_env module>, 'SUITE')
 # suite._DOMAINS['<custom dm_env module>'] = <custom dm_env module>
-
 from metaworld.envs.mujoco.env_dict import ALL_V2_ENVIRONMENTS
 
-
-from . import point_mass
-from . import reacher
+from . import point_mass, reacher
+from .base import Empty
 
 assert hasattr(point_mass, "SUITE")
 suite._DOMAINS["goal_point_mass"] = point_mass
@@ -51,7 +46,11 @@ for domain_name, task_name in suite._get_tasks(tag=None):
 
 for env_name, env_cls in ALL_V2_ENVIRONMENTS.items():
     ID = f"mw_{env_name}"
-    register(id=ID, entry_point="research.envs.metaworld:SawyerEnv", kwargs={"env_name": env_name})
+    register(
+        id=ID,
+        entry_point="research.envs.metaworld:SawyerEnv",
+        kwargs={"env_name": env_name},
+    )
 
 # Add the PolyMetis Envs
 register(

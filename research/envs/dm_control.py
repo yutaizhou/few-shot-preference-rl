@@ -22,7 +22,11 @@ class ActionDTypeWrapper(dm_env.Environment):
         self._env = env
         wrapped_action_spec = env.action_spec()
         self._action_spec = specs.BoundedArray(
-            wrapped_action_spec.shape, dtype, wrapped_action_spec.minimum, wrapped_action_spec.maximum, "action"
+            wrapped_action_spec.shape,
+            dtype,
+            wrapped_action_spec.minimum,
+            wrapped_action_spec.maximum,
+            "action",
         )
 
     def step(self, action):
@@ -84,7 +88,9 @@ class FlattenWrapper(dm_env.Environment):
         # Combine the spaces
         num_elem = sum([np.prod(v.shape) for v in original_spec.values()])
         self._obs_spec = collections.OrderedDict()
-        self._obs_spec[FLAT_OBSERVATION_KEY] = specs.Array([num_elem], dtype, name=FLAT_OBSERVATION_KEY)
+        self._obs_spec[FLAT_OBSERVATION_KEY] = specs.Array(
+            [num_elem], dtype, name=FLAT_OBSERVATION_KEY
+        )
 
     def _transform_time_step(self, time_step):
         observation = time_step.observation
@@ -94,9 +100,14 @@ class FlattenWrapper(dm_env.Environment):
             # Keep a consistent ordering for other mappings.
             keys = sorted(observation.keys())
         observation_arrays = [
-            np.array([observation[k]]) if np.isscalar(observation[k]) else observation[k].ravel() for k in keys
+            np.array([observation[k]])
+            if np.isscalar(observation[k])
+            else observation[k].ravel()
+            for k in keys
         ]
-        observation = type(observation)([(FLAT_OBSERVATION_KEY, np.concatenate(observation_arrays))])
+        observation = type(observation)(
+            [(FLAT_OBSERVATION_KEY, np.concatenate(observation_arrays))]
+        )
         return time_step._replace(observation=observation)
 
     def step(self, action):
@@ -134,12 +145,16 @@ class ChannelsFirstWrapper(dm_env.Environment):
         assert isinstance(pixel_spec, specs.Array)
         assert len(pixel_spec.shape) == 3
         h, w, c = pixel_spec.shape
-        observation_spec[self._pixels_key] = specs.Array((c, h, w), dtype=pixel_spec.dtype, name=pixel_spec.name)
+        observation_spec[self._pixels_key] = specs.Array(
+            (c, h, w), dtype=pixel_spec.dtype, name=pixel_spec.name
+        )
         self._obs_spec = observation_spec
 
     def _transform_time_step(self, time_step):
         observation = time_step.observation
-        observation[self._pixels_key] = observation[self._pixels_key].transpose(2, 0, 1).copy()
+        observation[self._pixels_key] = (
+            observation[self._pixels_key].transpose(2, 0, 1).copy()
+        )
         return time_step._replace(observation=observation)
 
     def step(self, action):
@@ -168,7 +183,9 @@ class StackWrapper(dm_env.Environment):
         self._queues = collections.OrderedDict()
         self._obs_spec = collections.OrderedDict()
         for k, v in env.observation_spec().items():
-            assert isinstance(v, specs.Array), "Observation conversion does not support bounded specs."
+            assert isinstance(
+                v, specs.Array
+            ), "Observation conversion does not support bounded specs."
             # Add a temporal axis to each shape.
             new_shape = np.concatenate([[stack], v.shape], axis=0)
             self._obs_spec[k] = specs.Array(new_shape, dtype=v.dtype, name=v.name)
@@ -267,10 +284,17 @@ class DMControlEnv(gym.Env):
         if action_repeat > 1:
             env = ActionRepeatWrapper(env, action_repeat)
         if action_minimum is not None and action_maximum is not None:
-            env = action_scale.Wrapper(env, minimum=action_minimum, maximum=action_maximum)
+            env = action_scale.Wrapper(
+                env, minimum=action_minimum, maximum=action_maximum
+            )
         if from_pixels:
             render_kwargs = dict(height=height, width=width, camera_id=camera_id)
-            env = pixels.Wrapper(env, pixels_only=True, render_kwargs=render_kwargs, observation_key=self._pixels_key)
+            env = pixels.Wrapper(
+                env,
+                pixels_only=True,
+                render_kwargs=render_kwargs,
+                observation_key=self._pixels_key,
+            )
             if channels_first:
                 env = ChannelsFirstWrapper(env, pixels_key=self._pixels_key)
         if flatten:
@@ -282,7 +306,9 @@ class DMControlEnv(gym.Env):
 
         # Create the equivalent gym spaces
         obs_spec = self._env.observation_spec()
-        if (isinstance(obs_spec, dict) or isinstance(obs_spec, collections.OrderedDict)) and len(obs_spec) == 1:
+        if (
+            isinstance(obs_spec, dict) or isinstance(obs_spec, collections.OrderedDict)
+        ) and len(obs_spec) == 1:
             self._unwrap_obs = True
             obs_spec = obs_spec[next(iter(obs_spec))]
         else:
@@ -348,7 +374,9 @@ class DMControlEnv(gym.Env):
             time_step = self._env._env.reset()
         else:
             time_step = self._env.reset()
-        assert "position" in time_step.observation and "velocity" in time_step.observation
+        assert (
+            "position" in time_step.observation and "velocity" in time_step.observation
+        )
         # Get the state back from the timestep
         obs = collections.OrderedDict()
         index = 0

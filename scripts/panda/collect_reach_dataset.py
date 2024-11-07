@@ -25,17 +25,30 @@ np.random.seed(args.seed)
 random.seed(args.seed)
 
 # Construct validation first to keep it detemrinistc
-TARGET_POSITIONS_VALID = [np.random.uniform(low=EE_POS_LOWER_LIMIT, high=EE_POS_UPPER_LIMIT) for _ in range(10)]
+TARGET_POSITIONS_VALID = [
+    np.random.uniform(low=EE_POS_LOWER_LIMIT, high=EE_POS_UPPER_LIMIT)
+    for _ in range(10)
+]
 TARGET_POSITIONS_TRAIN = [
-    np.random.uniform(low=EE_POS_LOWER_LIMIT, high=EE_POS_UPPER_LIMIT) for _ in range(args.num_tasks)
+    np.random.uniform(low=EE_POS_LOWER_LIMIT, high=EE_POS_UPPER_LIMIT)
+    for _ in range(args.num_tasks)
 ]
 
 
 def create_random_dataset(target_pos: np.ndarray, path: str) -> None:
     initialization_noise = args.noise_magnitude
-    env = gym.make("PyBulletPandaReach-v0", goal=target_pos, initialization_noise=initialization_noise)
+    env = gym.make(
+        "PyBulletPandaReach-v0",
+        goal=target_pos,
+        initialization_noise=initialization_noise,
+    )
     env._max_episode_steps = args.ep_length
-    dataset = ReplayBuffer(env.observation_space, env.action_space, capacity=args.num_steps, distributed=False)
+    dataset = ReplayBuffer(
+        env.observation_space,
+        env.action_space,
+        capacity=args.num_steps,
+        distributed=False,
+    )
     dataset.setup()
     # Collect data
     num_steps = 0
@@ -51,7 +64,10 @@ def create_random_dataset(target_pos: np.ndarray, path: str) -> None:
         # Determine the discount factor.
         if "discount" in info:
             discount = info["discount"]
-        elif hasattr(env, "_max_episode_steps") and episode_length == env._max_episode_steps:
+        elif (
+            hasattr(env, "_max_episode_steps")
+            and episode_length == env._max_episode_steps
+        ):
             discount = 1.0
         else:
             discount = 1 - float(done)
@@ -60,7 +76,9 @@ def create_random_dataset(target_pos: np.ndarray, path: str) -> None:
         dataset.add(obs, action, reward, done, discount)
 
     # save the dataset
-    save_path = os.path.join(path, "x{}_y{}_z{}".format(target_pos[0], target_pos[1], target_pos[2]))
+    save_path = os.path.join(
+        path, "x{}_y{}_z{}".format(target_pos[0], target_pos[1], target_pos[2])
+    )
     dataset.save_flat(save_path)
 
 

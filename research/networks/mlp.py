@@ -35,7 +35,9 @@ class MLPEncoder(nn.Module):
         normalization: Optional[Type[nn.Module]] = None,
         ortho_init: bool = False,
     ):
-        assert len(hidden_layers) > 1, "Must have at least one hidden layer for a shared MLP Extractor"
+        assert (
+            len(hidden_layers) > 1
+        ), "Must have at least one hidden layer for a shared MLP Extractor"
         self.mlp = MLP(
             observation_space.shape[0],
             hidden_layers[-1],
@@ -45,7 +47,9 @@ class MLPEncoder(nn.Module):
             normalization=normalization,
         )
         if ortho_init:
-            self.apply(partial(weight_init, gain=float(ortho_init)))  # use the fact that True converts to 1.0
+            self.apply(
+                partial(weight_init, gain=float(ortho_init))
+            )  # use the fact that True converts to 1.0
 
 
 class ContinuousMLPCritic(nn.Module):
@@ -84,7 +88,9 @@ class ContinuousMLPCritic(nn.Module):
             )
 
         if ortho_init:
-            self.apply(partial(weight_init, gain=float(ortho_init)))  # use the fact that True converts to 1.0
+            self.apply(
+                partial(weight_init, gain=float(ortho_init))
+            )  # use the fact that True converts to 1.0
             if output_gain is not None:
                 self.mlp.last_layer.apply(partial(weight_init, gain=output_gain))
 
@@ -118,7 +124,9 @@ class DiscreteMLPCritic(nn.Module):
             normalization=normalization,
         )
         if ortho_init:
-            self.apply(partial(weight_init, gain=float(ortho_init)))  # use the fact that True converts to 1.0
+            self.apply(
+                partial(weight_init, gain=float(ortho_init))
+            )  # use the fact that True converts to 1.0
             if output_gain is not None:
                 self.mlp.last_layer.apply(partial(weight_init, gain=output_gain))
 
@@ -150,7 +158,9 @@ class MLPValue(nn.Module):
             output_act=output_act,
         )
         if ortho_init:
-            self.apply(partial(weight_init, gain=float(ortho_init)))  # use the fact that True converts to 1.0
+            self.apply(
+                partial(weight_init, gain=float(ortho_init))
+            )  # use the fact that True converts to 1.0
             if output_gain is not None:
                 self.mlp.last_layer.apply(partial(weight_init, gain=output_gain))
 
@@ -172,7 +182,10 @@ class ContinuousMLPActor(nn.Module):
         output_gain: Optional[float] = None,
     ):
         super().__init__()
-        assert isinstance(observation_space, gym.spaces.Box) and len(observation_space.shape) == 1
+        assert (
+            isinstance(observation_space, gym.spaces.Box)
+            and len(observation_space.shape) == 1
+        )
 
         self.mlp = MLP(
             observation_space.shape[0],
@@ -184,7 +197,9 @@ class ContinuousMLPActor(nn.Module):
             output_act=output_act,
         )
         if ortho_init:
-            self.apply(partial(weight_init, gain=float(ortho_init)))  # use the fact that True converts to 1.0
+            self.apply(
+                partial(weight_init, gain=float(ortho_init))
+            )  # use the fact that True converts to 1.0
             if output_gain is not None:
                 self.mlp.last_layer.apply(partial(weight_init, gain=output_gain))
 
@@ -227,7 +242,10 @@ class DiagonalGaussianMLPActor(nn.Module):
     ):
         super().__init__()
         # If we have a dict space, concatenate the input dims
-        assert isinstance(observation_space, gym.spaces.Box) and len(observation_space.shape) == 1
+        assert (
+            isinstance(observation_space, gym.spaces.Box)
+            and len(observation_space.shape) == 1
+        )
 
         self.state_dependent_log_std = state_dependent_log_std
         self.log_std_bounds = log_std_bounds
@@ -235,8 +253,12 @@ class DiagonalGaussianMLPActor(nn.Module):
         self.log_std_tanh = log_std_tanh
 
         # Perform checks to make sure arguments are consistent
-        assert log_std_bounds is None or log_std_bounds[0] < log_std_bounds[1], "invalid log_std bounds"
-        assert not (output_act is not None and squash_normal), "Cannot use output act and squash normal"
+        assert (
+            log_std_bounds is None or log_std_bounds[0] < log_std_bounds[1]
+        ), "invalid log_std bounds"
+        assert not (
+            output_act is not None and squash_normal
+        ), "Cannot use output act and squash normal"
 
         if self.state_dependent_log_std:
             action_dim = 2 * action_space.shape[0]
@@ -257,7 +279,9 @@ class DiagonalGaussianMLPActor(nn.Module):
         )
 
         if ortho_init:
-            self.apply(partial(weight_init, gain=float(ortho_init)))  # use the fact that True converts to 1.0
+            self.apply(
+                partial(weight_init, gain=float(ortho_init))
+            )  # use the fact that True converts to 1.0
             if output_gain is not None:
                 self.mlp.last_layer.apply(partial(weight_init, gain=output_gain))
 
@@ -270,7 +294,9 @@ class DiagonalGaussianMLPActor(nn.Module):
             if self.log_std_tanh:
                 log_std = torch.tanh(log_std)
                 log_std_min, log_std_max = self.log_std_bounds
-                log_std = log_std_min + 0.5 * (log_std_max - log_std_min) * (log_std + 1)
+                log_std = log_std_min + 0.5 * (log_std_max - log_std_min) * (
+                    log_std + 1
+                )
             else:
                 log_std = torch.clamp(log_std, *self.log_std_bounds)
 
@@ -330,10 +356,16 @@ class MetaRewardMLPEnsemble(nn.Module):
                 nn.init.kaiming_uniform_(w, a=math.sqrt(5))
                 w.transpose_(0, 1)
             params[f"linear_w_{i}"] = nn.Parameter(weight)
-            fan_in, _ = nn.init._calculate_fan_in_and_fan_out(params[f"linear_w_{i}"][0].T)
+            fan_in, _ = nn.init._calculate_fan_in_and_fan_out(
+                params[f"linear_w_{i}"][0].T
+            )
             bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
             params[f"linear_b_{i}"] = nn.Parameter(
-                nn.init.uniform_(torch.empty(ensemble_size, 1, dim, requires_grad=True), -bound, bound)
+                nn.init.uniform_(
+                    torch.empty(ensemble_size, 1, dim, requires_grad=True),
+                    -bound,
+                    bound,
+                )
             )
             last_dim = dim
 

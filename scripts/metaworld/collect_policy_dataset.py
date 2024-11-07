@@ -42,7 +42,10 @@ def collect_episode(
         # TODO: Set done to true if the other env is done.
         if "discount" in info:
             discount = info["discount"]
-        elif hasattr(dest_env, "_max_episode_steps") and episode_length == dest_env._max_episode_steps:
+        elif (
+            hasattr(dest_env, "_max_episode_steps")
+            and episode_length == dest_env._max_episode_steps
+        ):
             discount = 1.0
         else:
             discount = 1 - float(done)
@@ -66,7 +69,10 @@ def collect_random_episode(env: gym.Env, dataset: ReplayBuffer):
         episode_length += 1
         if "discount" in info:
             discount = info["discount"]
-        elif hasattr(env, "_max_episode_steps") and episode_length == env._max_episode_steps:
+        elif (
+            hasattr(env, "_max_episode_steps")
+            and episode_length == env._max_episode_steps
+        ):
             discount = 1.0
         else:
             discount = 1 - float(done)
@@ -117,21 +123,35 @@ def collect_dataset(
         for i, task in enumerate(tasks):
             dest_env.set_task(task)
             dataset = ReplayBuffer(
-                dest_env.observation_space, dest_env.action_space, capacity=total_ep_per_env * 502, distributed=False
+                dest_env.observation_space,
+                dest_env.action_space,
+                capacity=total_ep_per_env * 502,
+                distributed=False,
             )
             dataset.setup()
 
             # Setup the expert policy
-            src_env = ALL_V2_ENVIRONMENTS_GOAL_OBSERVABLE[task.env_name + "-goal-observable"]()
+            src_env = ALL_V2_ENVIRONMENTS_GOAL_OBSERVABLE[
+                task.env_name + "-goal-observable"
+            ]()
             data = pickle.loads(task.data)
             data["partially_observable"] = False
-            src_env.set_task(Task(env_name=task.env_name, data=pickle.dumps(data)))  # POTENTIAL ERROR
+            src_env.set_task(
+                Task(env_name=task.env_name, data=pickle.dumps(data))
+            )  # POTENTIAL ERROR
             policy_name = "".join([s.capitalize() for s in task.env_name.split("-")])
             policy_name = policy_name.replace("PegInsert", "PegInsertion")
             policy_name = "Sawyer" + policy_name + "Policy"
             policy = vars(policies)[policy_name]()
             for _ in range(expert_ep):
-                collect_episode(src_env, dest_env, policy, dataset, epsilon=epsilon, noise_type=noise_type)
+                collect_episode(
+                    src_env,
+                    dest_env,
+                    policy,
+                    dataset,
+                    epsilon=epsilon,
+                    noise_type=noise_type,
+                )
 
             # Now collect the other episodes
             for _ in range(within_env_ep):
@@ -160,7 +180,12 @@ if __name__ == "__main__":
     parser.add_argument("--within-env-ep", type=int, default=5)
     parser.add_argument("--expert-ep", type=int, default=2)
     parser.add_argument("--random-ep", type=int, default=1)
-    parser.add_argument("--epsilon", type=float, default=0.1, help="probabiliyt of taking a random action")
+    parser.add_argument(
+        "--epsilon",
+        type=float,
+        default=0.1,
+        help="probabiliyt of taking a random action",
+    )
     parser.add_argument("--noise-type", type=str, default="gaussain")
     parser.add_argument("--rank", type=int, default=0)
     parser.add_argument("--num-workers", type=int, default=1)
@@ -249,7 +274,9 @@ if __name__ == "__main__":
         # We are a worker thread
         # If we're a worker thread, our rank is the index into the env_list
         env_dict = benchmark.test_classes if args.valid else benchmark.train_classes
-        names = list(env_dict.keys())[(args.rank - 1) * chunk_size : args.rank * chunk_size]
+        names = list(env_dict.keys())[
+            (args.rank - 1) * chunk_size : args.rank * chunk_size
+        ]
         seed(args.rank)
         collect_dataset(
             benchmark,

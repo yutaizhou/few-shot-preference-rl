@@ -59,7 +59,12 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--num-steps", "-n", type=int, default=10000)
 parser.add_argument("--path", type=str, required=True)
 parser.add_argument("--vision", action="store_true", default=False)
-parser.add_argument("--env", type=str, choices=["point_mass", "point_mass_random", "reacher"], required=True)
+parser.add_argument(
+    "--env",
+    type=str,
+    choices=["point_mass", "point_mass_random", "reacher"],
+    required=True,
+)
 args = parser.parse_args()
 
 env_id = {
@@ -74,7 +79,12 @@ env_id += "-v0"
 
 def create_random_dataset(target_pos: Tuple[float, float], path: str) -> None:
     env = gym.make(env_id, task_kwargs=dict(target_pos=target_pos))
-    dataset = ReplayBuffer(env.observation_space, env.action_space, capacity=args.num_steps, distributed=False)
+    dataset = ReplayBuffer(
+        env.observation_space,
+        env.action_space,
+        capacity=args.num_steps,
+        distributed=False,
+    )
     dataset.setup()
     # Collect data
     num_steps = 0
@@ -90,7 +100,10 @@ def create_random_dataset(target_pos: Tuple[float, float], path: str) -> None:
         # Determine the discount factor.
         if "discount" in info:
             discount = info["discount"]
-        elif hasattr(env, "_max_episode_stes") and episode_length == env._max_episode_steps:
+        elif (
+            hasattr(env, "_max_episode_stes")
+            and episode_length == env._max_episode_steps
+        ):
             discount = 1.0
         else:
             discount = 1 - float(done)

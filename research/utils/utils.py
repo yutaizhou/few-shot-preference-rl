@@ -94,7 +94,9 @@ def squeeze(batch: Any, dim: int) -> Any:
     return batch
 
 
-def get_from_batch(batch: Any, start: Union[int, np.ndarray, torch.Tensor], end: Optional[int] = None) -> Any:
+def get_from_batch(
+    batch: Any, start: Union[int, np.ndarray, torch.Tensor], end: Optional[int] = None
+) -> Any:
     if isinstance(batch, dict):
         batch = {k: get_from_batch(v, start, end=end) for k, v in batch.items()}
     elif isinstance(batch, list) or isinstance(batch, tuple):
@@ -166,11 +168,17 @@ def get_device(batch: Any) -> Optional[torch.device]:
 
 
 def concatenate(*args, dim: int = 0):
-    assert all([isinstance(arg, type(args[0])) for arg in args]), "Must concatenate tensors of the same type"
+    assert all(
+        [isinstance(arg, type(args[0])) for arg in args]
+    ), "Must concatenate tensors of the same type"
     if isinstance(args[0], dict):
-        return {k: concatenate(*[arg[k] for arg in args], dim=dim) for k in args[0].keys()}
+        return {
+            k: concatenate(*[arg[k] for arg in args], dim=dim) for k in args[0].keys()
+        }
     elif isinstance(args[0], list) or isinstance(args[0], tuple):
-        return [concatenate(*[arg[i] for arg in args], dim=dim) for i in range(len(args[0]))]
+        return [
+            concatenate(*[arg[i] for arg in args], dim=dim) for i in range(len(args[0]))
+        ]
     elif isinstance(args[0], np.ndarray):
         return np.concatenate(args, axis=dim)
     elif isinstance(args[0], torch.Tensor):
@@ -190,10 +198,16 @@ class PrintNode(torch.nn.Module):
 
 
 def np_dataset_alloc(
-    space: gym.Space, capacity: int, begin_pad: Tuple[int] = tuple(), end_pad: Tuple[int] = tuple()
+    space: gym.Space,
+    capacity: int,
+    begin_pad: Tuple[int] = tuple(),
+    end_pad: Tuple[int] = tuple(),
 ) -> np.ndarray:
     if isinstance(space, gym.spaces.Dict):
-        return {k: np_dataset_alloc(v, capacity, begin_pad=begin_pad, end_pad=end_pad) for k, v in space.items()}
+        return {
+            k: np_dataset_alloc(v, capacity, begin_pad=begin_pad, end_pad=end_pad)
+            for k, v in space.items()
+        }
     elif isinstance(space, gym.spaces.Box):
         dtype = np.float32 if space.dtype == np.float64 else space.dtype
         return np.empty((capacity,) + begin_pad + space.shape + end_pad, dtype=dtype)
@@ -210,11 +224,15 @@ def np_dataset_alloc(
         raise ValueError("Invalid space provided")
 
 
-def _flatten_dict_helper(flat_dict: Dict, value: Any, prefix: str, separator: str = ".") -> None:
+def _flatten_dict_helper(
+    flat_dict: Dict, value: Any, prefix: str, separator: str = "."
+) -> None:
     if isinstance(value, dict):
         for k in value.keys():
             assert isinstance(k, str), "Can only flatten dicts with str keys"
-            _flatten_dict_helper(flat_dict, value[k], prefix + separator + k, separator=separator)
+            _flatten_dict_helper(
+                flat_dict, value[k], prefix + separator + k, separator=separator
+            )
     else:
         flat_dict[prefix[1:]] = value
 

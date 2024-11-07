@@ -15,7 +15,9 @@ class SAC(Algorithm):
         self,
         env: gym.Env,
         network_class: Type[torch.nn.Module],
-        dataset_class: Union[Type[torch.utils.data.IterableDataset], Type[torch.utils.data.Dataset]],
+        dataset_class: Union[
+            Type[torch.utils.data.IterableDataset], Type[torch.utils.data.Dataset]
+        ],
         tau: float = 0.005,
         init_temperature: float = 0.1,
         env_freq: int = 1,
@@ -37,32 +39,49 @@ class SAC(Algorithm):
         self.actor_freq = actor_freq
         self.target_freq = target_freq
         self.init_steps = init_steps
-        self.action_range = [float(self.action_space.low.min()), float(self.action_space.high.max())]
+        self.action_range = [
+            float(self.action_space.low.min()),
+            float(self.action_space.high.max()),
+        ]
 
     @property
     def alpha(self) -> torch.Tensor:
         return self.log_alpha.exp()
 
-    def setup_network(self, network_class: Type[torch.nn.Module], network_kwargs: Dict) -> None:
+    def setup_network(
+        self, network_class: Type[torch.nn.Module], network_kwargs: Dict
+    ) -> None:
         self.network = network_class(
-            self.processor.observation_space, self.processor.action_space, **network_kwargs
+            self.processor.observation_space,
+            self.processor.action_space,
+            **network_kwargs,
         ).to(self.device)
         self.target_network = network_class(
-            self.processor.observation_space, self.processor.action_space, **network_kwargs
+            self.processor.observation_space,
+            self.processor.action_space,
+            **network_kwargs,
         ).to(self.device)
         self.target_network.load_state_dict(self.network.state_dict())
         for param in self.target_network.parameters():
             param.requires_grad = False
 
-    def setup_optimizers(self, optim_class: Type[torch.optim.Optimizer], optim_kwargs: Dict) -> None:
+    def setup_optimizers(
+        self, optim_class: Type[torch.optim.Optimizer], optim_kwargs: Dict
+    ) -> None:
         # Default optimizer initialization
-        self.optim["actor"] = optim_class(self.network.actor.parameters(), **optim_kwargs)
+        self.optim["actor"] = optim_class(
+            self.network.actor.parameters(), **optim_kwargs
+        )
         # Update the encoder with the critic.
-        critic_params = itertools.chain(self.network.critic.parameters(), self.network.encoder.parameters())
+        critic_params = itertools.chain(
+            self.network.critic.parameters(), self.network.encoder.parameters()
+        )
         self.optim["critic"] = optim_class(critic_params, **optim_kwargs)
 
         # Setup the learned entropy coefficients. This has to be done first so its present in the setup_optim call.
-        self.log_alpha = torch.tensor(np.log(self.init_temperature), dtype=torch.float).to(self.device)
+        self.log_alpha = torch.tensor(
+            np.log(self.init_temperature), dtype=torch.float
+        ).to(self.device)
         self.log_alpha.requires_grad = True
         self.target_entropy = -np.prod(self.action_space.low.shape)
 
@@ -79,7 +98,11 @@ class SAC(Algorithm):
 
         qs = self.network.critic(batch["obs"], batch["action"])
         q_loss = (
-            torch.nn.functional.mse_loss(qs, target_q.expand(qs.shape[0], -1), reduction="none").mean(dim=-1).sum()
+            torch.nn.functional.mse_loss(
+                qs, target_q.expand(qs.shape[0], -1), reduction="none"
+            )
+            .mean(dim=-1)
+            .sum()
         )  # averages over the ensemble. No for loop!
 
         self.optim["critic"].zero_grad(set_to_none=True)
@@ -133,7 +156,10 @@ class SAC(Algorithm):
 
         if "discount" in info:
             discount = info["discount"]
-        elif hasattr(self.env, "_max_episode_steps") and self._episode_length == self.env._max_episode_steps:
+        elif (
+            hasattr(self.env, "_max_episode_steps")
+            and self._episode_length == self.env._max_episode_steps
+        ):
             discount = 1.0
         else:
             discount = 1 - float(done)
@@ -199,13 +225,19 @@ class SAC(Algorithm):
             # Only update the critic and encoder for speed. Ignore the actor.
             with torch.no_grad():
                 for param, target_param in zip(
-                    self.network.encoder.parameters(), self.target_network.encoder.parameters()
+                    self.network.encoder.parameters(),
+                    self.target_network.encoder.parameters(),
                 ):
-                    target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
+                    target_param.data.copy_(
+                        self.tau * param.data + (1 - self.tau) * target_param.data
+                    )
                 for param, target_param in zip(
-                    self.network.critic.parameters(), self.target_network.critic.parameters()
+                    self.network.critic.parameters(),
+                    self.target_network.critic.parameters(),
                 ):
-                    target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
+                    target_param.data.copy_(
+                        self.tau * param.data + (1 - self.tau) * target_param.data
+                    )
 
         return all_metrics
 

@@ -27,15 +27,25 @@ class PandaEnv(gym.Env):
         # Setup the camera
         self._camera_width, self._camera_height = None, None
         self.sim.resetDebugVisualizerCamera(
-            cameraDistance=1.2, cameraYaw=30, cameraPitch=-60, cameraTargetPosition=[0.5, -0.2, 0.0]
+            cameraDistance=1.2,
+            cameraYaw=30,
+            cameraPitch=-60,
+            cameraTargetPosition=[0.5, -0.2, 0.0],
         )
         self.view_matrix = self.sim.computeViewMatrixFromYawPitchRoll(
-            cameraTargetPosition=[0.5, 0, 0], distance=1.0, yaw=90, pitch=-50, roll=0, upAxisIndex=2
+            cameraTargetPosition=[0.5, 0, 0],
+            distance=1.0,
+            yaw=90,
+            pitch=-50,
+            roll=0,
+            upAxisIndex=2,
         )
         self._projection_matrix = None
         # setup the panda
         self.sim.loadURDF("plane.urdf", basePosition=[0, 0, 0])
-        self.panda = self.sim.loadURDF("franka_panda/panda.urdf", useFixedBase=True, basePosition=basePosition)
+        self.panda = self.sim.loadURDF(
+            "franka_panda/panda.urdf", useFixedBase=True, basePosition=basePosition
+        )
 
         # Save parameters
         self.initialization_noise = initialization_noise
@@ -51,7 +61,9 @@ class PandaEnv(gym.Env):
             self._desired_quat = np.array([1.0, 0.0, 0.0, 0.0])
         else:
             raise ValueError("Invalid EE Link provided")
-        self.max_forces = np.array([87.0, 87.0, 87.0, 87.0, 12.0, 120.0, 120.0, 170.0, 170.0])
+        self.max_forces = np.array(
+            [87.0, 87.0, 87.0, 87.0, 12.0, 120.0, 120.0, 170.0, 170.0]
+        )
         self.n_substeps = n_substeps
 
         # Set the joint limits as in polymetis
@@ -93,7 +105,10 @@ class PandaEnv(gym.Env):
         else:
             gripper_position = [0.0, 0.0]
         self.sim.setJointMotorControlArray(
-            self.panda, [9, 10], self.sim.POSITION_CONTROL, targetPositions=list(gripper_position)
+            self.panda,
+            [9, 10],
+            self.sim.POSITION_CONTROL,
+            targetPositions=list(gripper_position),
         )
 
         for _ in range(self.n_substeps):
@@ -116,8 +131,12 @@ class PandaEnv(gym.Env):
 
         if self.initialization_noise > 0:
             ee_pos = np.array(ee_pos)
-            delta = self.initialization_noise * np.random.uniform(low=-1, high=1, size=ee_pos.shape)
-            ee_desired = np.clip(ee_pos + delta, self.ee_pos_lower_limit, self.ee_pos_upper_limit)
+            delta = self.initialization_noise * np.random.uniform(
+                low=-1, high=1, size=ee_pos.shape
+            )
+            ee_desired = np.clip(
+                ee_pos + delta, self.ee_pos_lower_limit, self.ee_pos_upper_limit
+            )
             # Update the robot
             new_joint_positions = self.sim.calculateInverseKinematics(
                 self.panda, self.ee_link, list(ee_desired), list(ee_quat)
@@ -130,13 +149,20 @@ class PandaEnv(gym.Env):
         return self._get_obs()
 
     def render(self, mode="rgb_array", width=120, height=120):
-        if height != self._camera_height or width != self._camera_width or self._projection_matrix is None:
+        if (
+            height != self._camera_height
+            or width != self._camera_width
+            or self._projection_matrix is None
+        ):
             self._camera_width, self._camera_height = width, height
             self._projection_matrix = self.sim.computeProjectionMatrixFOV(
                 fov=60, aspect=float(width) / height, nearVal=0.1, farVal=100.0
             )
         (width, height, pxl, _, _) = self.sim.getCameraImage(
-            width=width, height=height, viewMatrix=self.view_matrix, projectionMatrix=self._projection_matrix
+            width=width,
+            height=height,
+            viewMatrix=self.view_matrix,
+            projectionMatrix=self._projection_matrix,
         )
         rgb_array = np.array(pxl, dtype=np.uint8)
         rgb_array = np.reshape(rgb_array, (height, width, 4))
@@ -264,9 +290,12 @@ class BlockPush(PandaEnv):
             baseVisualShapeIndex=baseVisualShapeIndex,
             baseCollisionShapeIndex=baseCollisionShapeIndex,
             baseMass=self.block_mass,
-            basePosition=self.block_base_position + np.array([0.0, 0.0, 0.01]),  # add a Z offest for initial placement
+            basePosition=self.block_base_position
+            + np.array([0.0, 0.0, 0.01]),  # add a Z offest for initial placement
         )
-        self.sim.changeDynamics(bodyUniqueId=self.block, linkIndex=-1, lateralFriction=0.5)
+        self.sim.changeDynamics(
+            bodyUniqueId=self.block, linkIndex=-1, lateralFriction=0.5
+        )
 
     @property
     def observation_space(self):
@@ -346,10 +375,16 @@ class BlockPush(PandaEnv):
 
             for pp in p0:
                 # compute relative position of the contact point wrt the finger link frame
-                f0_pos_pp = self.sim.multiplyTransforms(f0_pos_w[0], f0_pos_w[1], pp[6], f0_pos_w[1])
+                f0_pos_pp = self.sim.multiplyTransforms(
+                    f0_pos_w[0], f0_pos_w[1], pp[6], f0_pos_w[1]
+                )
 
                 # check if contact in the internal part of finger
-                if f0_pos_pp[0][1] <= 0.001 and f0_pos_pp[0][2] < 0.055 and pp[8] > -0.005:
+                if (
+                    f0_pos_pp[0][1] <= 0.001
+                    and f0_pos_pp[0][2] < 0.055
+                    and pp[8] > -0.005
+                ):
                     p0_contact += 1
                     p0_f.append(pp[9])
 
@@ -363,10 +398,16 @@ class BlockPush(PandaEnv):
 
             for pp in p1:
                 # compute relative position of the contact point wrt the finger link frame
-                f1_pos_pp = self.sim.multiplyTransforms(f1_pos_w[0], f1_pos_w[1], pp[6], f1_pos_w[1])
+                f1_pos_pp = self.sim.multiplyTransforms(
+                    f1_pos_w[0], f1_pos_w[1], pp[6], f1_pos_w[1]
+                )
 
                 # check if contact in the internal part of finger
-                if f1_pos_pp[0][1] >= -0.001 and f1_pos_pp[0][2] < 0.055 and pp[8] > -0.005:
+                if (
+                    f1_pos_pp[0][1] >= -0.001
+                    and f1_pos_pp[0][2] < 0.055
+                    and pp[8] > -0.005
+                ):
                     p1_contact += 1
                     p1_f.append(pp[9])
 
@@ -380,7 +421,13 @@ class BlockPush(PandaEnv):
 
 
 if __name__ == "__main__":
-    env = BlockPush(use_quat=False, fix_gripper=False, initialization_noise=0.0, randomize_block=True, grasp_bonus=0.0)
+    env = BlockPush(
+        use_quat=False,
+        fix_gripper=False,
+        initialization_noise=0.0,
+        randomize_block=True,
+        grasp_bonus=0.0,
+    )
     obs = env.reset()
     done = False
     max_length = 100

@@ -10,10 +10,16 @@ import research
 class NetworkContainer(torch.nn.Module):
     CONTAINERS = []
 
-    def __init__(self, observation_space: gym.Space, action_space: gym.Space, **kwargs) -> None:
+    def __init__(
+        self, observation_space: gym.Space, action_space: gym.Space, **kwargs
+    ) -> None:
         super().__init__()
         # save the classes and containers
-        base_kwargs = {k: v for k, v in kwargs.items() if not k.endswith("_class") and not k.endswith("_kwargs")}
+        base_kwargs = {
+            k: v
+            for k, v in kwargs.items()
+            if not k.endswith("_class") and not k.endswith("_kwargs")
+        }
         self._kwargs = dict()
         self._classes = dict()
         for container in self.CONTAINERS:
@@ -42,13 +48,19 @@ class NetworkContainer(torch.nn.Module):
                 # update the output space
                 output_space = getattr(self, container).output_space
 
-    def _reset(self, container: str, device: Optional[Union[str, torch.device]] = None) -> None:
+    def _reset(
+        self, container: str, device: Optional[Union[str, torch.device]] = None
+    ) -> None:
         # Fetch the cachced parameters
         network_class = self._classes[container]
         network_kwargs = self._kwargs[container]
         observation_space = self._spaces[container]
         # Refresh
-        network_class = vars(research.networks)[network_class] if isinstance(network_class, str) else network_class
+        network_class = (
+            vars(research.networks)[network_class]
+            if isinstance(network_class, str)
+            else network_class
+        )
         network = network_class(observation_space, self.action_space, **network_kwargs)
         if device is not None:
             network = network.to(device)

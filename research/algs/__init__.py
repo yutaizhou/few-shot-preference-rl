@@ -1,5 +1,4 @@
 # Register Algorithms here.
-from .sac import SAC
-
-from .pebble import PEBBLE, FewShotPEBBLE
 from .maml import PreferenceMAML
+from .pebble import PEBBLE, FewShotPEBBLE
+from .sac import SAC

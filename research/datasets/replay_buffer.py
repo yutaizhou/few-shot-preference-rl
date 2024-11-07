@@ -10,7 +10,14 @@ import gym
 import numpy as np
 import torch
 
-from research.utils.utils import concatenate, flatten_dict, get_from_batch, nest_dict, np_dataset_alloc, set_in_batch
+from research.utils.utils import (
+    concatenate,
+    flatten_dict,
+    get_from_batch,
+    nest_dict,
+    np_dataset_alloc,
+    set_in_batch,
+)
 
 
 def save_data(data: Dict, path: str) -> None:
@@ -50,7 +57,14 @@ def load_data(path: str) -> Dict:
     # Unnest the data to get everything in the correct format
     data = nest_dict(data)
     kwargs = data.get("kwargs", dict())
-    return data["obs"], data["action"], data["reward"], data["done"], data["discount"], kwargs
+    return (
+        data["obs"],
+        data["action"],
+        data["reward"],
+        data["done"],
+        data["discount"],
+        kwargs,
+    )
 
 
 def add_to_ep(d: Dict, key: str, value: Any, extend: bool = False) -> None:
@@ -140,8 +154,12 @@ class ReplayBuffer(torch.utils.data.IterableDataset):
         self.dummy_action = self.action_space.sample()
 
         # Data Storage parameters
-        self.capacity = capacity  # The total storage of the dataset, or None if growth is disabled
-        self.distributed = distributed  # Whether or not the dataset is created in __init__ or __iter__
+        self.capacity = (
+            capacity  # The total storage of the dataset, or None if growth is disabled
+        )
+        self.distributed = (
+            distributed  # Whether or not the dataset is created in __init__ or __iter__
+        )
         self.cleanup = cleanup
         self.path = path
         self.fetch_every = fetch_every
@@ -181,9 +199,13 @@ class ReplayBuffer(torch.utils.data.IterableDataset):
         num_workers = 1 if worker_info is None else worker_info.num_workers
         worker_id = 0 if worker_info is None else worker_info.id
 
-        ep_filenames = sorted([os.path.join(self.path, f) for f in os.listdir(self.path)], reverse=True)
+        ep_filenames = sorted(
+            [os.path.join(self.path, f) for f in os.listdir(self.path)], reverse=True
+        )
         for ep_filename in ep_filenames:
-            ep_idx, _ = [int(x) for x in os.path.splitext(ep_filename)[0].split("_")[-2:]]
+            ep_idx, _ = [
+                int(x) for x in os.path.splitext(ep_filename)[0].split("_")[-2:]
+            ]
             if ep_idx % num_workers != worker_id:
                 continue
             # try:
@@ -231,7 +253,9 @@ class ReplayBuffer(torch.utils.data.IterableDataset):
             # Set the size to be the shape of the reward buffer
             self._size = self._reward_buffer.shape[0]
             self._idx = self._size
-            assert self._size > 0, "Fixed replay buffer found no data at specified path."
+            assert (
+                self._size > 0
+            ), "Fixed replay buffer found no data at specified path."
 
     def add(
         self,
@@ -244,9 +268,13 @@ class ReplayBuffer(torch.utils.data.IterableDataset):
     ) -> None:
         # Make sure that if we are adding the first transition, it is consistent
         assert self.capacity is not None, "Tried to extend to a static size buffer."
-        assert (action is None) == (reward is None) == (done is None) == (discount is None)
+        assert (
+            (action is None) == (reward is None) == (done is None) == (discount is None)
+        )
         if action is None:
-            assert not isinstance(reward, (np.ndarray, list)), "Tried to add initial transition in batch mode."
+            assert not isinstance(
+                reward, (np.ndarray, list)
+            ), "Tried to add initial transition in batch mode."
             action = copy.deepcopy(self.dummy_action)
             reward = 0.0
             done = False
@@ -285,11 +313,15 @@ class ReplayBuffer(torch.utils.data.IterableDataset):
             save_data(self.current_ep, os.path.join(self.storage_path, ep_filename))
             self.current_ep = dict()
 
-    def _add_to_buffer(self, obs: Any, action: Any, reward: Any, done: Any, discount: Any, **kwargs) -> None:
+    def _add_to_buffer(
+        self, obs: Any, action: Any, reward: Any, done: Any, discount: Any, **kwargs
+    ) -> None:
         # Can add in batches or serially.
         if isinstance(reward, list) or isinstance(reward, np.ndarray):
             num_to_add = len(reward)
-            assert num_to_add > 1, "If inputting lists or arrays should have more than one timestep"
+            assert (
+                num_to_add > 1
+            ), "If inputting lists or arrays should have more than one timestep"
         else:
             num_to_add = 1
 
@@ -325,7 +357,9 @@ class ReplayBuffer(torch.utils.data.IterableDataset):
             for k, v in kwargs.items():
                 if k not in self._kwarg_buffers:
                     sample_value = get_from_batch(v, 0) if num_to_add > 1 else v
-                    self._kwarg_buffers[k] = np_dataset_alloc(sample_value, self._capacity)
+                    self._kwarg_buffers[k] = np_dataset_alloc(
+                        sample_value, self._capacity
+                    )
                 set_in_batch(self._kwarg_buffers[k], v, start, end)
 
             self._idx = (self._idx + num_to_add) % self._capacity
@@ -337,7 +371,9 @@ class ReplayBuffer(torch.utils.data.IterableDataset):
         from the storage path to the desired path. By default, we will also delete the original files.
         """
         if self.cleanup:
-            print("[research] Warning, attempting to save a cleaned up replay buffer. There are likely no files")
+            print(
+                "[research] Warning, attempting to save a cleaned up replay buffer. There are likely no files"
+            )
         os.makedirs(path, exist_ok=True)
         srcs = os.listdir(self.storage_path)
         for src in srcs:
@@ -368,7 +404,10 @@ class ReplayBuffer(torch.utils.data.IterableDataset):
         if not self.cleanup:
             return
         if hasattr(self, "storage_path"):
-            paths = [os.path.join(self.storage_path, f) for f in os.listdir(self.storage_path)]
+            paths = [
+                os.path.join(self.storage_path, f)
+                for f in os.listdir(self.storage_path)
+            ]
             for path in paths:
                 try:
                     os.remove(path)
@@ -383,10 +422,15 @@ class ReplayBuffer(torch.utils.data.IterableDataset):
         """
         Fetches data from the storage path
         """
-        ep_filenames = sorted([os.path.join(self.storage_path, f) for f in os.listdir(self.storage_path)], reverse=True)
+        ep_filenames = sorted(
+            [os.path.join(self.storage_path, f) for f in os.listdir(self.storage_path)],
+            reverse=True,
+        )
         fetched_size = 0
         for ep_filename in ep_filenames:
-            ep_idx, ep_len = [int(x) for x in os.path.splitext(ep_filename)[0].split("_")[-2:]]
+            ep_idx, ep_len = [
+                int(x) for x in os.path.splitext(ep_filename)[0].split("_")[-2:]
+            ]
             if ep_idx % self._num_workers != self._worker_id:
                 continue
             if ep_filename in self._episode_filenames:
@@ -437,7 +481,9 @@ class ReplayBuffer(torch.utils.data.IterableDataset):
         self._samples_since_last_load = 0
 
         while True:
-            yield self.sample(batch_size=self.batch_size, stack=self.stack, pad=self.pad)
+            yield self.sample(
+                batch_size=self.batch_size, stack=self.stack, pad=self.pad
+            )
             if self.capacity is not None and self.is_parallel:
                 self._samples_since_last_load += 1
                 if self._samples_since_last_load >= self.fetch_every:
@@ -456,10 +502,21 @@ class ReplayBuffer(torch.utils.data.IterableDataset):
             idx = idx + np.arange(stack) * self.nstep
         return idx
 
-    def _get_many_idxs(self, batch_size: int, stack: int, pad: int, depth: int = 0) -> np.ndarray:
-        idxs = np.random.randint(0, self._size - self.nstep * stack, size=int(self.sample_multiplier * batch_size)) + 1
+    def _get_many_idxs(
+        self, batch_size: int, stack: int, pad: int, depth: int = 0
+    ) -> np.ndarray:
+        idxs = (
+            np.random.randint(
+                0,
+                self._size - self.nstep * stack,
+                size=int(self.sample_multiplier * batch_size),
+            )
+            + 1
+        )
 
-        done_idxs = np.expand_dims(idxs, axis=-1) + np.arange(self.nstep * (stack - pad)) - 1
+        done_idxs = (
+            np.expand_dims(idxs, axis=-1) + np.arange(self.nstep * (stack - pad)) - 1
+        )
         valid = np.logical_not(
             np.any(self._done_buffer[done_idxs], axis=-1)
         )  # Compute along the done axis, not the index axis.
@@ -488,7 +545,9 @@ class ReplayBuffer(torch.utils.data.IterableDataset):
         mask = np.minimum(np.cumsum(mask, axis=-1), 1.0)
         return mask
 
-    def sample(self, batch_size: Optional[int] = None, stack: int = 1, pad: int = 0) -> Dict:
+    def sample(
+        self, batch_size: Optional[int] = None, stack: int = 1, pad: int = 0
+    ) -> Dict:
         if self._size <= self.nstep * stack + 2:
             return {}
         # NOTE: one small bug is that we won't end up being able to sample segments that span

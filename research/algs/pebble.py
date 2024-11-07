@@ -19,7 +19,10 @@ from .base import Algorithm
 
 class RunningStats(object):
     def __init__(
-        self, epsilon: float = 1e-5, shape: Tuple = (), device: Optional[Union[str, torch.device]] = None
+        self,
+        epsilon: float = 1e-5,
+        shape: Tuple = (),
+        device: Optional[Union[str, torch.device]] = None,
     ) -> None:
         self._mean = torch.zeros(shape, device=device)
         self._var = torch.ones(shape, device=device)
@@ -58,7 +61,9 @@ class PEBBLE(Algorithm):
         self,
         env: gym.Env,
         network_class: Type[torch.nn.Module],
-        dataset_class: Union[Type[torch.utils.data.IterableDataset], Type[torch.utils.data.Dataset]],
+        dataset_class: Union[
+            Type[torch.utils.data.IterableDataset], Type[torch.utils.data.Dataset]
+        ],
         tau: float = 0.005,
         init_temperature: float = 0.1,
         env_freq: int = 1,
@@ -107,7 +112,10 @@ class PEBBLE(Algorithm):
         self.init_steps = init_steps
         self.unsup_steps = unsup_steps
         self.reward_init_steps = self.init_steps + self.unsup_steps
-        self.action_range = [float(self.action_space.low.min()), float(self.action_space.high.max())]
+        self.action_range = [
+            float(self.action_space.low.min()),
+            float(self.action_space.high.max()),
+        ]
 
         # Feedback Parameters
         self.segment_size = segment_size
@@ -147,38 +155,54 @@ class PEBBLE(Algorithm):
     def alpha(self) -> torch.Tensor:
         return self.log_alpha.exp()
 
-    def setup_network(self, network_class: Type[torch.nn.Module], network_kwargs: Dict) -> None:
-        self.network = network_class(self.env.observation_space, self.env.action_space, **network_kwargs).to(
-            self.device
-        )
-        self.target_network = network_class(self.env.observation_space, self.env.action_space, **network_kwargs).to(
-            self.device
-        )
+    def setup_network(
+        self, network_class: Type[torch.nn.Module], network_kwargs: Dict
+    ) -> None:
+        self.network = network_class(
+            self.env.observation_space, self.env.action_space, **network_kwargs
+        ).to(self.device)
+        self.target_network = network_class(
+            self.env.observation_space, self.env.action_space, **network_kwargs
+        ).to(self.device)
         self.target_network.load_state_dict(self.network.state_dict())
         for param in self.target_network.parameters():
             param.requires_grad = False
 
-    def setup_optimizers(self, optim_class: Type[torch.optim.Optimizer], optim_kwargs: Dict) -> None:
+    def setup_optimizers(
+        self, optim_class: Type[torch.optim.Optimizer], optim_kwargs: Dict
+    ) -> None:
         # save the optim_kwargs for resetting the critic
         self.optim_kwargs = optim_kwargs
         # Default optimizer initialization
-        self.optim["actor"] = optim_class(self.network.actor.parameters(), **optim_kwargs)
+        self.optim["actor"] = optim_class(
+            self.network.actor.parameters(), **optim_kwargs
+        )
         # Update the encoder with the critic.
-        critic_params = itertools.chain(self.network.critic.parameters(), self.network.encoder.parameters())
+        critic_params = itertools.chain(
+            self.network.critic.parameters(), self.network.encoder.parameters()
+        )
         self.optim["critic"] = optim_class(critic_params, **optim_kwargs)
 
         # Setup the learned entropy coefficients. This has to be done first so its present in the setup_optim call.
-        self.log_alpha = torch.tensor(np.log(self.init_temperature), dtype=torch.float).to(self.device)
+        self.log_alpha = torch.tensor(
+            np.log(self.init_temperature), dtype=torch.float
+        ).to(self.device)
         self.log_alpha.requires_grad = True
         self.target_entropy = -np.prod(self.env.action_space.low.shape)
         self.optim["log_alpha"] = optim_class([self.log_alpha], **optim_kwargs)
 
-        self.optim["reward"] = self.reward_optim(self.network.reward.parameters(), **self.reward_optim_kwargs)
+        self.optim["reward"] = self.reward_optim(
+            self.network.reward.parameters(), **self.reward_optim_kwargs
+        )
 
     def setup_datasets(self) -> None:
         super().setup_datasets()
-        assert isinstance(self.dataset, ReplayBuffer), "Must use replay buffer for PEBBLE"
-        assert self.dataset.distributed == False, "Cannot use distributed replay buffer with PEBBLE"
+        assert isinstance(
+            self.dataset, ReplayBuffer
+        ), "Must use replay buffer for PEBBLE"
+        assert (
+            self.dataset.distributed == False
+        ), "Cannot use distributed replay buffer with PEBBLE"
         # Note that the dataloader for the reward model runs on a single thread!
         self.feedback_dataset = FeedbackLabelDataset(
             self.observation_space,
@@ -189,14 +213,19 @@ class PEBBLE(Algorithm):
             capacity=self.max_feedback + 1,
         )
         self.feedback_dataloader = torch.utils.data.DataLoader(
-            self.feedback_dataset, batch_size=None, num_workers=0, pin_memory=(self.device.type == "cuda")
+            self.feedback_dataset,
+            batch_size=None,
+            num_workers=0,
+            pin_memory=(self.device.type == "cuda"),
         )
 
     def _reset_critic(self) -> None:
         self.network.reset_critic(device=self.device)  # Reset the critic weights
         optim_class = type(self.optim["critic"])
         del self.optim["critic"]  # explicitly remove this from optimization
-        critic_params = itertools.chain(self.network.critic.parameters(), self.network.encoder.parameters())
+        critic_params = itertools.chain(
+            self.network.critic.parameters(), self.network.encoder.parameters()
+        )
         self.optim["critic"] = optim_class(critic_params, **self.optim_kwargs)
         # Sync the target network
         self.target_network.critic.load_state_dict(self.network.critic.state_dict())
@@ -209,13 +238,17 @@ class PEBBLE(Algorithm):
             log_prob = dist.log_prob(next_action).sum(dim=-1)
             target_qs = self.target_network.critic(batch["next_obs"], next_action)
             target_v = torch.min(target_qs, dim=0)[0] - self.alpha.detach() * log_prob
-            reward = self.network.reward(batch["obs"], batch["action"]).mean(dim=0)  # Should be shape (B, 0)
+            reward = self.network.reward(batch["obs"], batch["action"]).mean(
+                dim=0
+            )  # Should be shape (B, 0)
             reward = self.reward_scale * reward + self.reward_shift
             target_q = reward + batch["discount"] * target_v
 
         qs = self.network.critic(batch["obs"], batch["action"])
         q_loss = (
-            torch.nn.functional.mse_loss(qs, target_q.expand(qs.shape[0], -1)).mean(dim=-1).sum()
+            torch.nn.functional.mse_loss(qs, target_q.expand(qs.shape[0], -1))
+            .mean(dim=-1)
+            .sum()
         )  # averages over the ensemble. No for loop!
 
         self.optim["critic"].zero_grad(set_to_none=True)
@@ -253,8 +286,12 @@ class PEBBLE(Algorithm):
 
     def _update_critic_unsup(self, batch: Dict) -> Dict:
         # Compute the state entropy
-        assert not self.dataset.is_parallel, "Unsupervised does not support parallel dataset for now."
-        assert not self.env.observation_space.dtype == np.uint8, "Image spaces not supported for unsup"
+        assert (
+            not self.dataset.is_parallel
+        ), "Unsupervised does not support parallel dataset for now."
+        assert (
+            not self.env.observation_space.dtype == np.uint8
+        ), "Image spaces not supported for unsup"
         with torch.no_grad():
             dist = self.network.actor(batch["next_obs"])
             next_action = dist.rsample()
@@ -266,10 +303,14 @@ class PEBBLE(Algorithm):
             dists = []
             for _ in range(self.num_unsup_batches):
                 full_obs = self.dataset.sample(batch_size=self.unsup_batch_size)["obs"]
-                dist = torch.norm(batch["obs"][:, None, :] - full_obs[None, :, :], dim=-1, p=2)
+                dist = torch.norm(
+                    batch["obs"][:, None, :] - full_obs[None, :, :], dim=-1, p=2
+                )
                 dists.append(dist)
             dists = torch.cat(dists, dim=1)
-            state_entropy = torch.kthvalue(dists, k=self.k_nearest_neighbors + 1, dim=1).values
+            state_entropy = torch.kthvalue(
+                dists, k=self.k_nearest_neighbors + 1, dim=1
+            ).values
             self.entropy_stats.update(state_entropy)
             if self.normalize_state_entropy:
                 state_entropy = state_entropy / self.entropy_stats.std
@@ -277,7 +318,9 @@ class PEBBLE(Algorithm):
 
         qs = self.network.critic(batch["obs"], batch["action"])
         q_loss = (
-            torch.nn.functional.mse_loss(qs, target_q.expand(qs.shape[0], -1)).mean(dim=-1).sum()
+            torch.nn.functional.mse_loss(qs, target_q.expand(qs.shape[0], -1))
+            .mean(dim=-1)
+            .sum()
         )  # averages over the ensemble. No for loop!
 
         self.optim["critic"].zero_grad(set_to_none=True)
@@ -290,8 +333,14 @@ class PEBBLE(Algorithm):
         B, S = batch["obs_1"].shape[:2]  # Get the batch size and the segment length
         flat_obs_shape = (B * S,) + batch["obs_1"].shape[2:]
         flat_action_shape = (B * S,) + batch["action_1"].shape[2:]
-        r_hat1 = self.network.reward(batch["obs_1"].view(*flat_obs_shape), batch["action_1"].view(flat_action_shape))
-        r_hat2 = self.network.reward(batch["obs_2"].view(*flat_obs_shape), batch["action_2"].view(flat_action_shape))
+        r_hat1 = self.network.reward(
+            batch["obs_1"].view(*flat_obs_shape),
+            batch["action_1"].view(flat_action_shape),
+        )
+        r_hat2 = self.network.reward(
+            batch["obs_2"].view(*flat_obs_shape),
+            batch["action_2"].view(flat_action_shape),
+        )
         E, B_times_S = r_hat1.shape
         assert B_times_S == B * S, "Shapes were incorrect"
         r_hat1 = r_hat1.view(E, B, S).sum(dim=2)  # Now should be (E, B)
@@ -313,7 +362,10 @@ class PEBBLE(Algorithm):
         print("Rendering images.")
         for i in range(batch_size):
             state_1, state_2 = batch["state_1"][i], batch["state_2"][i]  # Shape (S, D)
-            segment_1, segment_2 = self._render_segment(state_1), self._render_segment(state_2)
+            segment_1, segment_2 = (
+                self._render_segment(state_1),
+                self._render_segment(state_2),
+            )
             # Display the overall plot
             fig, ax = plt.subplots(2, 1, figsize=(12, 4))
             ax[0].imshow(segment_1)
@@ -337,17 +389,28 @@ class PEBBLE(Algorithm):
                 # We are done! A bit hacky but set max_feedback to be zero so we never ask for feedback again
                 self.max_feedback = -1
                 break
-            print("Ground truth was", 2 if batch["reward_1"][i] < batch["reward_2"][i] else 1)
+            print(
+                "Ground truth was",
+                2 if batch["reward_1"][i] < batch["reward_2"][i] else 1,
+            )
         labels = np.array(labels)
         gt_labels = gt_labels[: labels.shape[0]]
         self._correct_queries += np.sum(gt_labels == labels)
         self._skipped_queries += np.sum(labels == -1)
-        return labels, dict(correct_queries=self._correct_queries, skipped_queries=self._skipped_queries)
+        return labels, dict(
+            correct_queries=self._correct_queries, skipped_queries=self._skipped_queries
+        )
 
     def _get_queries(self, batch_size):
-        batch = self.dataset.sample(batch_size=2 * batch_size, stack=self.segment_size, pad=0)
+        batch = self.dataset.sample(
+            batch_size=2 * batch_size, stack=self.segment_size, pad=0
+        )
         # Compute the discounted reward across each segment to be used for oracle labels
-        returns = np.sum(batch["reward"] * np.power(self.dataset.discount, np.arange(batch["reward"].shape[1])), axis=1)
+        returns = np.sum(
+            batch["reward"]
+            * np.power(self.dataset.discount, np.arange(batch["reward"].shape[1])),
+            axis=1,
+        )
         segment_batch = dict(
             obs_1=batch["obs"][:batch_size],
             obs_2=batch["obs"][batch_size:],
@@ -365,24 +428,34 @@ class PEBBLE(Algorithm):
     def _collect_feedback(self) -> Dict:
         # Compute the amount of feedback to collect
         if self.feedback_schedule == "linear":
-            batch_size = int(self.init_feedback_size * (self.total_steps - self.steps) / self.total_steps)
+            batch_size = int(
+                self.init_feedback_size
+                * (self.total_steps - self.steps)
+                / self.total_steps
+            )
         elif self.feedback_schedule == "constant":
             batch_size = self.init_feedback_size
         else:
             raise ValueError("Invalid Feedback Schedule Specified.")
         feedback_left = self.max_feedback - self.total_feedback
         batch_size = min(batch_size, feedback_left)
-        assert batch_size > 0, "Called _collect_feedback when we have no more budget left."
+        assert (
+            batch_size > 0
+        ), "Called _collect_feedback when we have no more budget left."
 
         if self.total_feedback == 0 or self.total_feedback < self.num_uniform_feedback:
             # Collect segments for the initial part.
             queries = self._get_queries(batch_size)
         else:
             # Else, collect segments via disagreement
-            queries = self._get_queries(batch_size=int(batch_size * self.feedback_sample_multiplier))
+            queries = self._get_queries(
+                batch_size=int(batch_size * self.feedback_sample_multiplier)
+            )
             # Compute disagreement via the ensemble
             with torch.no_grad():
-                logits = self._get_reward_logits(to_device(to_tensor(queries), self.device))
+                logits = self._get_reward_logits(
+                    to_device(to_tensor(queries), self.device)
+                )
                 probs = torch.sigmoid(logits)
                 probs = probs.cpu().numpy()  # Shape (E, B)
             disagreement = np.std(probs, axis=0)  # Compute along the ensemble axis
@@ -423,7 +496,11 @@ class PEBBLE(Algorithm):
         if self.reset_reward_net:
             checkpoint = torch.load(self.checkpoint_path, map_location=self.device)
             reward_params = collections.OrderedDict(
-                [(k[7:], v) for k, v in checkpoint["network"].items() if k.startswith("reward")]
+                [
+                    (k[7:], v)
+                    for k, v in checkpoint["network"].items()
+                    if k.startswith("reward")
+                ]
             )
             self.network.reward.load_state_dict(reward_params)
 
@@ -434,8 +511,12 @@ class PEBBLE(Algorithm):
                 batch = to_device(batch, self.device)
                 self.optim["reward"].zero_grad(set_to_none=True)
                 logits = self._get_reward_logits(batch)  # Shape (E, B)
-                labels = batch["label"].float().unsqueeze(0).expand(logits.shape[0], -1)  # Shape (E, B)
-                loss = self.reward_criterion(logits, labels).mean(dim=-1).sum(dim=0)  # Average on B, sum on E
+                labels = (
+                    batch["label"].float().unsqueeze(0).expand(logits.shape[0], -1)
+                )  # Shape (E, B)
+                loss = (
+                    self.reward_criterion(logits, labels).mean(dim=-1).sum(dim=0)
+                )  # Average on B, sum on E
                 loss.backward()
                 self.optim["reward"].step()
 
@@ -449,7 +530,9 @@ class PEBBLE(Algorithm):
             mean_acc = np.mean(accuracies)
             if isinstance(self.reward_epochs, int) and epochs == self.reward_epochs:
                 break
-            elif isinstance(self.reward_epochs, float) and mean_acc >= self.reward_epochs:
+            elif (
+                isinstance(self.reward_epochs, float) and mean_acc >= self.reward_epochs
+            ):
                 # Train until we reach a specific reward threshold
                 break
             elif mean_acc > 0.97:
@@ -483,7 +566,10 @@ class PEBBLE(Algorithm):
 
         if "discount" in info:
             discount = info["discount"]
-        elif hasattr(self.env, "_max_episode_steps") and self._episode_length == self.env._max_episode_steps:
+        elif (
+            hasattr(self.env, "_max_episode_steps")
+            and self._episode_length == self.env._max_episode_steps
+        ):
             discount = 1.0
         else:
             discount = 1 - float(done)
@@ -566,16 +652,25 @@ class PEBBLE(Algorithm):
             # Only update the critic and encoder for speed. Ignore the actor.
             with torch.no_grad():
                 for param, target_param in zip(
-                    self.network.encoder.parameters(), self.target_network.encoder.parameters()
+                    self.network.encoder.parameters(),
+                    self.target_network.encoder.parameters(),
                 ):
-                    target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
+                    target_param.data.copy_(
+                        self.tau * param.data + (1 - self.tau) * target_param.data
+                    )
                 for param, target_param in zip(
-                    self.network.critic.parameters(), self.target_network.critic.parameters()
+                    self.network.critic.parameters(),
+                    self.target_network.critic.parameters(),
                 ):
-                    target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
+                    target_param.data.copy_(
+                        self.tau * param.data + (1 - self.tau) * target_param.data
+                    )
 
         if (
-            (self.last_feedback_step is None or (self.steps - self.last_feedback_step) % self.reward_freq == 0)
+            (
+                self.last_feedback_step is None
+                or (self.steps - self.last_feedback_step) % self.reward_freq == 0
+            )
             and self.total_feedback < self.max_feedback
             and self.steps >= self.reward_init_steps
         ):
@@ -616,11 +711,15 @@ class PEBBLE(Algorithm):
                 pos_segment, neg_segment = neg_segment, pos_segment
             # Save the rendering
             grid = np.concatenate((pos_segment, neg_segment), axis=0)
-            out_path = os.path.join(path, "feedback_%d_query_%d.png" % (self.total_feedback, i))
+            out_path = os.path.join(
+                path, "feedback_%d_query_%d.png" % (self.total_feedback, i)
+            )
             imageio.imwrite(out_path, grid)
         return {}
 
-    def _render_segment(self, states: np.ndarray, height: int = 128, width: int = 128) -> np.ndarray:
+    def _render_segment(
+        self, states: np.ndarray, height: int = 128, width: int = 128
+    ) -> np.ndarray:
         assert self.eval_env is not None and hasattr(self.eval_env, "set_state")
         imgs = []
         max_imgs = 12
@@ -667,13 +766,19 @@ class FewShotPEBBLE(PEBBLE):
         # save the optim_kwargs for resetting the critic
         self.optim_kwargs = optim_kwargs
         # Default optimizer initialization
-        self.optim["actor"] = optim_class(self.network.actor.parameters(), **optim_kwargs)
+        self.optim["actor"] = optim_class(
+            self.network.actor.parameters(), **optim_kwargs
+        )
         # Update the encoder with the critic.
-        critic_params = itertools.chain(self.network.critic.parameters(), self.network.encoder.parameters())
+        critic_params = itertools.chain(
+            self.network.critic.parameters(), self.network.encoder.parameters()
+        )
         self.optim["critic"] = optim_class(critic_params, **optim_kwargs)
 
         # Setup the learned entropy coefficients. This has to be done first so its present in the setup_optim call.
-        self.log_alpha = torch.tensor(np.log(self.init_temperature), dtype=torch.float).to(self.device)
+        self.log_alpha = torch.tensor(
+            np.log(self.init_temperature), dtype=torch.float
+        ).to(self.device)
         self.log_alpha.requires_grad = True
         self.target_entropy = -np.prod(self.env.action_space.low.shape)
         self.optim["log_alpha"] = optim_class([self.log_alpha], **optim_kwargs)
@@ -685,12 +790,18 @@ class FewShotPEBBLE(PEBBLE):
 
         self._inner_lrs = torch.nn.ParameterDict(
             {
-                k: torch.nn.Parameter(torch.tensor(self.reward_optim_kwargs.get("lr", 0.0003)), requires_grad=False)
+                k: torch.nn.Parameter(
+                    torch.tensor(self.reward_optim_kwargs.get("lr", 0.0003)),
+                    requires_grad=False,
+                )
                 for k, v in self.network.reward.params.items()
             }
         )
         self.optim["reward"] = optim_class(
-            itertools.chain(self.network.reward.params.values(), self._inner_lrs.values()), **self.reward_optim_kwargs
+            itertools.chain(
+                self.network.reward.params.values(), self._inner_lrs.values()
+            ),
+            **self.reward_optim_kwargs,
         )
 
     def _save_extras(self):
@@ -705,7 +816,11 @@ class FewShotPEBBLE(PEBBLE):
         assert self.reset_reward_net, "Must reset network for PEBBLE with explicit MAML"
         checkpoint = torch.load(self.checkpoint_path, map_location=self.device)
         reward_params = collections.OrderedDict(
-            [(k[7:], v) for k, v in checkpoint["network"].items() if k.startswith("reward")]
+            [
+                (k[7:], v)
+                for k, v in checkpoint["network"].items()
+                if k.startswith("reward")
+            ]
         )
         self.network.reward.load_state_dict(reward_params)
         self._inner_lrs.load_state_dict(checkpoint["lrs"])
@@ -717,12 +832,20 @@ class FewShotPEBBLE(PEBBLE):
             for batch in self.feedback_dataloader:
                 batch = to_device(batch, self.device)
                 logits = self._get_reward_logits(batch)  # Shape (E, B)
-                labels = batch["label"].float().unsqueeze(0).expand(logits.shape[0], -1)  # Shape (E, B)
-                loss = self.reward_criterion(logits, labels).mean(dim=-1).sum(dim=0)  # Average on B, sum on E
+                labels = (
+                    batch["label"].float().unsqueeze(0).expand(logits.shape[0], -1)
+                )  # Shape (E, B)
+                loss = (
+                    self.reward_criterion(logits, labels).mean(dim=-1).sum(dim=0)
+                )  # Average on B, sum on E
                 # This runs the MAML style adaptation at each iteration.
-                grads = torch.autograd.grad(loss, self.network.reward.params.values(), create_graph=False)
+                grads = torch.autograd.grad(
+                    loss, self.network.reward.params.values(), create_graph=False
+                )
                 for j, (k, v) in enumerate(self.network.reward.params.items()):
-                    self.network.reward.params[k].data = v - self._inner_lrs[k] * grads[j]
+                    self.network.reward.params[k].data = (
+                        v - self._inner_lrs[k] * grads[j]
+                    )
                 losses.append(loss.item())
                 # Compute the accuracy
                 with torch.no_grad():
@@ -733,7 +856,9 @@ class FewShotPEBBLE(PEBBLE):
             mean_acc = np.mean(accuracies)
             if isinstance(self.reward_epochs, int) and epochs == self.reward_epochs:
                 break
-            elif isinstance(self.reward_epochs, float) and mean_acc >= self.reward_epochs:
+            elif (
+                isinstance(self.reward_epochs, float) and mean_acc >= self.reward_epochs
+            ):
                 # Train until we reach a specific reward threshold
                 break
             elif mean_acc > 0.95:
@@ -743,7 +868,9 @@ class FewShotPEBBLE(PEBBLE):
                 break
 
         if not reached_max_epochs:
-            return dict(reward_loss=np.mean(losses), reward_accuracy=np.mean(accuracies))
+            return dict(
+                reward_loss=np.mean(losses), reward_accuracy=np.mean(accuracies)
+            )
 
         # if accuracy is still below a certain threshold, then finetune again with adam
         epochs = 0
@@ -753,8 +880,12 @@ class FewShotPEBBLE(PEBBLE):
                 batch = to_device(batch, self.device)
                 self.optim["reward"].zero_grad(set_to_none=True)
                 logits = self._get_reward_logits(batch)  # Shape (E, B)
-                labels = batch["label"].float().unsqueeze(0).expand(logits.shape[0], -1)  # Shape (E, B)
-                loss = self.reward_criterion(logits, labels).mean(dim=-1).sum(dim=0)  # Average on B, sum on E
+                labels = (
+                    batch["label"].float().unsqueeze(0).expand(logits.shape[0], -1)
+                )  # Shape (E, B)
+                loss = (
+                    self.reward_criterion(logits, labels).mean(dim=-1).sum(dim=0)
+                )  # Average on B, sum on E
                 loss.backward()
                 self.optim["reward"].step()
                 losses.append(loss.item())
@@ -767,7 +898,9 @@ class FewShotPEBBLE(PEBBLE):
             mean_acc = np.mean(accuracies)
             if isinstance(self.reward_epochs, int) and epochs == self.reward_epochs:
                 break
-            elif isinstance(self.reward_epochs, float) and mean_acc >= self.reward_epochs:
+            elif (
+                isinstance(self.reward_epochs, float) and mean_acc >= self.reward_epochs
+            ):
                 # Train until we reach a specific reward threshold
                 break
             elif mean_acc > 0.95:

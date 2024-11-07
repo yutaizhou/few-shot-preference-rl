@@ -4,9 +4,9 @@ from .mlp import (
     ContinuousMLPActor,
     ContinuousMLPCritic,
     DiagonalGaussianMLPActor,
-    MLPValue,
-    MLPEncoder,
     DiscreteMLPCritic,
-    RewardMLPEnsemble,
     MetaRewardMLPEnsemble,
+    MLPEncoder,
+    MLPValue,
+    RewardMLPEnsemble,
 )
